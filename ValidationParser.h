@@ -3,12 +3,15 @@
 #include <iostream>
 #include <fstream>
 #include "boost/algorithm/string.hpp"
+#include "boost/filesystem.hpp"
 
 // ROOT
 #include "TFile.h"
 #include "TTree.h"
 #include "TH1.h"
 #include "TCanvas.h"
+#include "TROOT.h"
+#include "TStyle.h"
 #include "TVector3.h"
 #include "TDictionary.h"
 #include "TBranch.h"

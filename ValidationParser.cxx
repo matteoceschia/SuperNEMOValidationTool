@@ -4,6 +4,7 @@
 bool hasConfig=true;
 TTree *tree;
 map<string,string> configParams;
+string plotdir;
 
 /**
  *  main function
@@ -11,7 +12,7 @@ map<string,string> configParams;
  */
 int main(int argc, char **argv)
 {
-
+  gStyle->SetOptStat(0);
   if (argc < 2)
   {
     cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
@@ -38,7 +39,12 @@ int main(int argc, char **argv)
  */
 void ParseRootFile(string rootFileName, string configFileName)
 {
-  
+  plotdir = "plots";
+  boost::filesystem::path dir(plotdir.c_str());
+  if(boost::filesystem::create_directory(dir))
+  {
+    cout<< "Directory Created: "<<plotdir<<std::endl;
+  }
   // Check the root file can be opened and contains a tree with the right name
   cout<<"Processing "<<rootFileName<<endl;
   TFile *rootFile;
@@ -112,7 +118,6 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-      //cout<< "Histogram variable "<<branchName<<endl;
       Plot1DHistogram(branchName);
       break;
     }
@@ -160,7 +165,6 @@ void Plot1DHistogram(string branchName)
   string title="";
   if (config.length()>0)
   {
-    cout<<"Config starts as: "<<config<<endl;
     // title, nbins, low limit, high limit separated by commas
     title=GetBitBeforeComma(config); // config now has this bit chopped off ready for the next parsing stage
 
@@ -204,8 +208,6 @@ void Plot1DHistogram(string branchName)
   {
     title = BranchNameToEnglish(branchName);
   }
-  cout<<branchName<<": "<<title<<" : "<<nbins<<" : "<<lowLimit<<" : "<<highLimit<<endl;
-  
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),900,600);
   TH1D *h;
   tree->Draw(branchName.c_str());
@@ -241,8 +243,10 @@ void Plot1DHistogram(string branchName)
   h = new TH1D(("plt_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
   h->GetYaxis()->SetTitle("Events");
   h->GetXaxis()->SetTitle(title.c_str());
+  h->SetFillColor(kPink-6);
+  h->SetFillStyle(1);
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
-  c->SaveAs((branchName+".png").c_str());
+  c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
 }
 
