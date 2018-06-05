@@ -11,6 +11,7 @@ map<string,string> configParams;
  */
 int main(int argc, char **argv)
 {
+
   if (argc < 2)
   {
     cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
@@ -104,7 +105,6 @@ bool PlotVariable(string branchName)
     config = configParams[branchName];
     if (config.length() > 0)
     {
-      //      cout<< "Branch "<<branchName<<" config:  "<<config<<endl;
       configFound=true;
     }
   }
@@ -151,11 +151,12 @@ map<string,string> LoadConfig(ifstream& configFile)
  */
 void Plot1DHistogram(string branchName)
 {
+  int notSetVal=-9999;
   string config="";
   config=configParams[branchName]; // get the config loaded from the file if there is one
-  int nbins=0;
-  int lowLimit=-9999;
-  int highLimit=-9999;
+  int nbins=100;
+  int lowLimit=0;
+  int highLimit=notSetVal;
   string title="";
   if (config.length()>0)
   {
@@ -183,7 +184,7 @@ void Plot1DHistogram(string branchName)
     }
     catch (exception &e)
     {
-      lowLimit=-9999;
+      lowLimit=0;
     }
     
     // High bin limit
@@ -194,15 +195,55 @@ void Plot1DHistogram(string branchName)
     }
     catch (exception &e)
     {
-      highLimit=-9999;
+      highLimit=notSetVal;
     }
   }
   
+
   if (title.length()==0)
   {
-    title = branchName;
+    title = BranchNameToEnglish(branchName);
   }
   cout<<branchName<<": "<<title<<" : "<<nbins<<" : "<<lowLimit<<" : "<<highLimit<<endl;
+  
+  TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),900,600);
+  TH1D *h;
+  tree->Draw(branchName.c_str());
+  if (highLimit == notSetVal)
+  {
+    // Use the default limits
+    TH1D *tmp = (TH1D*) gPad->GetPrimitive("htemp");
+    highLimit=tmp->GetXaxis()->GetXmax();
+    delete tmp;
+    EDataType datatype;
+    TClass *ctmp;
+    tree->FindBranch(branchName.c_str())->GetExpectedType(ctmp,datatype);
+    delete ctmp;
+    if (datatype==kBool_t)
+    {
+      nbins=2;
+      highLimit=2;
+      lowLimit=0;
+    }
+    else if (datatype== kInt_t || datatype== kUInt_t)
+    {
+      
+      highLimit +=1;
+      if (highLimit <=100) nbins = (int) highLimit;
+      else nbins = 100;
+    }
+    else
+    {
+      highLimit += highLimit /10.;
+      nbins = 100;
+    }
+  }
+  h = new TH1D(("plt_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
+  h->GetYaxis()->SetTitle("Events");
+  h->GetXaxis()->SetTitle(title.c_str());
+  tree->Draw((branchName + ">> plt_"+branchName).c_str());
+  c->SaveAs((branchName+".png").c_str());
+  delete c;
 }
 
 /**
@@ -229,3 +270,15 @@ string GetBitBeforeComma(string& input)
   return output;
 }
 
+string BranchNameToEnglish(string branchname)
+{
+  int pos = branchname.find_first_of("_");
+  while (pos >=0)
+  {
+    branchname.replace(pos,1," ");
+    pos = branchname.find_first_of("_");
+  }
+  string output = branchname.substr(2,branchname.length());
+  output[0]=toupper(output[0]);
+  return output;
+}
