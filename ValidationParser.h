@@ -11,6 +11,8 @@
 #include "TH1.h"
 #include "TH2.h"
 #include "TCanvas.h"
+#include "TLine.h"
+#include "TText.h"
 #include "TROOT.h"
 #include "TStyle.h"
 #include "TVector3.h"
@@ -31,3 +33,4 @@ string GetBitBeforeComma(string& input);
 void Plot1DHistogram(string branchName);
 void PlotTrackerMap(string branchName);
 string BranchNameToEnglish(string branchname);
+void WriteLabel(double x, double y, string text, bool rotate=false);

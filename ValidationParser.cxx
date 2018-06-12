@@ -281,16 +281,34 @@ void PlotTrackerMap(string branchName)
   }
   
   // Make the plot
-  TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),900,600);
+  TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
   TH2I *h = new TH2I(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
   h->GetYaxis()->SetTitle("Row");
   h->GetXaxis()->SetTitle("Layer");
 
   tree->Draw(("TMath::Abs("+branchName+"/100) :" + branchName+"%100 >> plt_"+branchName).c_str(),"","COLZ");
+  TLine *foil=new TLine(0,0,0,113);
+  foil->SetLineColor(kGray);
+  foil->SetLineWidth(5);
+  foil->Draw("SAME");
+  
+  
+  WriteLabel(.2,.5,"Italy");
+  WriteLabel(.7,.5,"France");
+  WriteLabel(0.4,.8,"Tunnel");
+  WriteLabel(.4,.15,"Mountain");
+  
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
 }
 
+void WriteLabel(double x, double y, string text, bool rotate)
+{
+  TText *txt = new TText(x,y,text.c_str());
+  txt->SetNDC();
+  txt->Draw();
+
+}
 /**
  *  Return the part of the string that is before the first comma (trimmed of white space)
  *  Modify the input string to be whatever is AFTER the first comma
