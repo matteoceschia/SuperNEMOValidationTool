@@ -114,11 +114,17 @@ bool PlotVariable(string branchName)
       configFound=true;
     }
   }
+
   switch (branchName[0])
   {
     case 'h':
     {
       Plot1DHistogram(branchName);
+      break;
+    }
+    case 't':
+    {
+      PlotTrackerMap(branchName);
       break;
     }
     default:
@@ -246,6 +252,41 @@ void Plot1DHistogram(string branchName)
   h->SetFillColor(kPink-6);
   h->SetFillStyle(1);
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
+  c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  delete c;
+}
+
+/**
+ *  Plot a map of the tracker cells
+ */
+void PlotTrackerMap(string branchName)
+{
+  int maxlayers=9;
+  int maxrows=113;
+  
+  string config="";
+  config=configParams[branchName]; // get the config loaded from the file if there is one
+  
+  string title="";
+  // Load the title from the config file
+  if (config.length()>0)
+  {
+    // title is the only thing for this one
+    title=GetBitBeforeComma(config); // config now has this bit chopped off ready for the next parsing stage
+  }
+  // Set the title to a default if there isn't anything in the config file
+  if (title.length()==0)
+  {
+    title = BranchNameToEnglish(branchName);
+  }
+  
+  // Make the plot
+  TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),900,600);
+  TH2I *h = new TH2I(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+  h->GetYaxis()->SetTitle("Row");
+  h->GetXaxis()->SetTitle("Layer");
+
+  tree->Draw(("TMath::Abs("+branchName+"/100) :" + branchName+"%100 >> plt_"+branchName).c_str(),"","COLZ");
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
 }

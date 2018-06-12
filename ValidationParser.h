@@ -9,6 +9,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TH1.h"
+#include "TH2.h"
 #include "TCanvas.h"
 #include "TROOT.h"
 #include "TStyle.h"
@@ -28,4 +29,5 @@ bool PlotVariable(string branchName);
 map<string,string> LoadConfig(ifstream& configFile);
 string GetBitBeforeComma(string& input);
 void Plot1DHistogram(string branchName);
+void PlotTrackerMap(string branchName);
 string BranchNameToEnglish(string branchname);
