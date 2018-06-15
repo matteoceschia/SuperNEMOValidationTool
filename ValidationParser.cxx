@@ -127,6 +127,11 @@ bool PlotVariable(string branchName)
       PlotTrackerMap(branchName);
       break;
     }
+    case 'c':
+    {
+      PlotCaloMap(branchName);
+      break;
+    }
     default:
     {
       //cout<< "Unknown variable type "<<branchName<<": treat as histogram"<<endl;
@@ -256,6 +261,101 @@ void Plot1DHistogram(string branchName)
   delete c;
 }
 
+
+/**
+ *  Plot a map of the calorimeter walls
+ *  We have 6 walls in total : 2 main walls (Italy, France)
+ *  2 x walls (tunnel, mountain) and 2 gamma vetos (top, bottom)
+ */
+void PlotCaloMap(string branchName)
+{
+  string config="";
+  config=configParams[branchName]; // get the config loaded from the file if there is one
+  
+  string title="";
+  // Load the title from the config file
+  if (config.length()>0)
+  {
+    // title is the only thing for this one
+    title=GetBitBeforeComma(config); // config now has this bit chopped off ready for the next parsing stage
+  }
+  // Set the title to a default if there isn't anything in the config file
+  if (title.length()==0)
+  {
+    title = BranchNameToEnglish(branchName);
+  }
+  
+  // Make 6 2-dimensional histograms for the 6 walls
+  int MAINWALL_WIDTH = 20;
+  int MAINWALL_HEIGHT = 13;
+  int XWALL_DEPTH = 4;
+  int XWALL_HEIGHT = 16;
+  int VETO_DEPTH = 2;
+  int VETO_WIDTH = 16;
+  
+  TH2I *h_italy = new TH2I("italy","Italy",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+  TH2I *h_france = new TH2I("france","France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+  TH2I *h_tunnel = new TH2I("tunnel","Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+  TH2I *h_mountain = new TH2I("mountain","Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+  TH2I *h_top = new TH2I("top","Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,-1*VETO_DEPTH/2,VETO_DEPTH/2); //Top gamma veto
+  TH2I *h_bottom = new TH2I("bottom","Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,-1*VETO_DEPTH/2,VETO_DEPTH/2); // Bottom gamma veto
+
+  // Loop the event tree and decode the position
+  
+  // Count the number of entries in the tree
+  int nEntries = tree -> GetEntries();
+  // Loop through the tree
+  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
+  {
+    // Set up a vector of strings to receive the list of calorimeter IDs
+    // There is one entry in the vector for each calorimeter hit in the event
+    // And it will have a format something like [1302:0.1.0.10.*]
+    std::vector<string> *caloHits;
+    tree->SetBranchAddress(branchName.c_str(), &caloHits);
+    tree->GetEntry(iEntry);
+    cout<<"---"<<endl;
+    for (int i=0;i<caloHits->size();i++)
+    {
+      //cout<<caloHits->at(i)<<endl;
+      string thisHit=caloHits->at(i);
+      cout<<thisHit<<endl;
+//      if (thisHit.length()>=9)
+//      {
+//        // Now to decode it
+//        string wallType = thisHit.substr(1,4);
+////
+////        if (wallType=="1302") // Main walls
+////        {
+////          cout<<"main"<<endl;
+////          //bool isFrance=(thisHit.substr(8,1)=="1");
+////          //cout<<thisHit<<" is in "<<(isFrance?"France":"Italy")<<endl;
+////        }
+////        else if (wallType == "1232") //x walls
+////        {
+////          cout<<"x wall"<<endl;
+////          //bool isTunnel=(thisHit.substr(8,1)=="1");
+////        }
+////        else if (wallType == "1252") // veto walls
+////        {
+////          cout<<"veto"<<endl;
+////          //bool isTop=(thisHit.substr(8,1)=="1");
+////        }
+////        else
+////        {
+////          cout<<"WARNING -- Calo hit found with unknown wall type "<<wallType<<endl;
+////        }
+////        
+//      }
+
+    }
+  }
+  
+  TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),1200,1200);
+  
+  c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  delete c;
+}
+
 /**
  *  Plot a map of the tracker cells
  */
@@ -286,7 +386,10 @@ void PlotTrackerMap(string branchName)
   h->GetYaxis()->SetTitle("Row");
   h->GetXaxis()->SetTitle("Layer");
 
+  // This decodes the encoded tracker map to extract the x and y positions
   tree->Draw(("TMath::Abs("+branchName+"/100) :" + branchName+"%100 >> plt_"+branchName).c_str(),"","COLZ");
+  
+  // Annotate to make it clear what the detector layout is
   TLine *foil=new TLine(0,0,0,113);
   foil->SetLineColor(kGray);
   foil->SetLineWidth(5);
@@ -302,6 +405,8 @@ void PlotTrackerMap(string branchName)
   delete c;
 }
 
+// Just a quick routine to write text at a (x,y) coordinate
+// If we want anything at 90 degrees we can use the rotate but I haven't implemented that yet
 void WriteLabel(double x, double y, string text, bool rotate)
 {
   TText *txt = new TText(x,y,text.c_str());

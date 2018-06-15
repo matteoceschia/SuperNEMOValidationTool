@@ -32,5 +32,6 @@ map<string,string> LoadConfig(ifstream& configFile);
 string GetBitBeforeComma(string& input);
 void Plot1DHistogram(string branchName);
 void PlotTrackerMap(string branchName);
+void PlotCaloMap(string branchName);
 string BranchNameToEnglish(string branchname);
 void WriteLabel(double x, double y, string text, bool rotate=false);
