@@ -304,49 +304,52 @@ void PlotCaloMap(string branchName)
   
   // Count the number of entries in the tree
   int nEntries = tree -> GetEntries();
+  // Set up a vector of strings to receive the list of calorimeter IDs
+  // There is one entry in the vector for each calorimeter hit in the event
+  // And it will have a format something like [1302:0.1.0.10.*]
+  std::vector<string> *caloHits = 0;
+  tree->SetBranchAddress(branchName.c_str(), &caloHits);
+
   // Loop through the tree
   for( int iEntry = 0; iEntry < nEntries; iEntry++ )
   {
-    // Set up a vector of strings to receive the list of calorimeter IDs
-    // There is one entry in the vector for each calorimeter hit in the event
-    // And it will have a format something like [1302:0.1.0.10.*]
-    std::vector<string> *caloHits;
-    tree->SetBranchAddress(branchName.c_str(), &caloHits);
     tree->GetEntry(iEntry);
     cout<<"---"<<endl;
-    for (int i=0;i<caloHits->size();i++)
+    if (caloHits->size()>0)
     {
-      //cout<<caloHits->at(i)<<endl;
-      string thisHit=caloHits->at(i);
-      cout<<thisHit<<endl;
-//      if (thisHit.length()>=9)
-//      {
-//        // Now to decode it
-//        string wallType = thisHit.substr(1,4);
-////
-////        if (wallType=="1302") // Main walls
-////        {
-////          cout<<"main"<<endl;
-////          //bool isFrance=(thisHit.substr(8,1)=="1");
-////          //cout<<thisHit<<" is in "<<(isFrance?"France":"Italy")<<endl;
-////        }
-////        else if (wallType == "1232") //x walls
-////        {
-////          cout<<"x wall"<<endl;
-////          //bool isTunnel=(thisHit.substr(8,1)=="1");
-////        }
-////        else if (wallType == "1252") // veto walls
-////        {
-////          cout<<"veto"<<endl;
-////          //bool isTop=(thisHit.substr(8,1)=="1");
-////        }
-////        else
-////        {
-////          cout<<"WARNING -- Calo hit found with unknown wall type "<<wallType<<endl;
-////        }
-////        
-//      }
-
+      for (int i=0;i<caloHits->size();i++)
+      {
+        string thisHit=caloHits->at(i);
+        cout<<thisHit<<endl;
+        if (thisHit.length()>=9)
+        {
+          //Now to decode it
+          string wallType = thisHit.substr(1,4);
+          cout<<wallType<<endl;
+          
+          if (wallType=="1302") // Main walls
+          {
+            cout<<"main"<<endl;
+            //bool isFrance=(thisHit.substr(8,1)=="1");
+            //cout<<thisHit<<" is in "<<(isFrance?"France":"Italy")<<endl;
+          }
+          else if (wallType == "1232") //x walls
+          {
+            cout<<"x wall"<<endl;
+            //bool isTunnel=(thisHit.substr(8,1)=="1");
+          }
+          else if (wallType == "1252") // veto walls
+          {
+            cout<<"veto"<<endl;
+            //bool isTop=(thisHit.substr(8,1)=="1");
+          }
+          else
+          {
+            cout<<"WARNING -- Calo hit found with unknown wall type "<<wallType<<endl;
+          }
+          
+        }
+      }
     }
   }
   
