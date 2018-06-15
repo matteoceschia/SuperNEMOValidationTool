@@ -326,12 +326,13 @@ void PlotCaloMap(string branchName)
         //cout<<thisHit<<endl;
         if (thisHit.length()>=9)
         {
+          bool isFrance=(thisHit.substr(8,1)=="1");
           //Now to decode it
           string wallType = thisHit.substr(1,4);
           
           if (wallType=="1302") // Main walls
           {
-            bool isFrance=(thisHit.substr(8,1)=="1");
+            
             if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
             string useThisToParse = thisHit;
             
@@ -354,7 +355,26 @@ void PlotCaloMap(string branchName)
           {
             bool isTunnel=(thisHit.substr(10,1)=="1");
             if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
-            cout<<iEntry <<" is xwall"<<endl;
+            // Hacky way to get the bit between the 3rd and 4th "." characters for x
+            string useThisToParse = thisHit;
+            int pos=0;
+            for (int j=0;j<3;j++)
+            {
+              int pos=useThisToParse.find('.');
+              useThisToParse=useThisToParse.substr(pos+1);
+            }
+            pos=useThisToParse.find('.');
+            std::string::size_type sz;   // alias of size_t
+            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+            
+            // and the bit before the next . characters for y
+            useThisToParse=useThisToParse.substr(pos+1);
+            pos=useThisToParse.find_first_of('.');
+            yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+            if (!isFrance)xValue = -1 * (xValue + 1); // Italy is on the left so reverse these to draw them
+            
+            cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
+
           }
           else if (wallType == "1252") // veto walls
           {
