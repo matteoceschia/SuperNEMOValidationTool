@@ -293,12 +293,12 @@ void PlotCaloMap(string branchName)
   int VETO_DEPTH = 2;
   int VETO_WIDTH = 16;
   
-  TH2I *h_italy = new TH2I("italy","Italy",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2I *h_france = new TH2I("france","France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2I *h_tunnel = new TH2I("tunnel","Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2I *h_mountain = new TH2I("mountain","Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2I *h_top = new TH2I("top","Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,-1*VETO_DEPTH/2,VETO_DEPTH/2); //Top gamma veto
-  TH2I *h_bottom = new TH2I("bottom","Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,-1*VETO_DEPTH/2,VETO_DEPTH/2); // Bottom gamma veto
+  TH2I *hItaly = new TH2I("italy","Italy",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+  TH2I *hFrance = new TH2I("france","France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+  TH2I *hTunnel = new TH2I("tunnel","Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+  TH2I *hMountain = new TH2I("mountain","Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+  TH2I *hTop = new TH2I("top","Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,-1*VETO_DEPTH/2,VETO_DEPTH/2); //Top gamma veto
+  TH2I *hBottom = new TH2I("bottom","Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,-1*VETO_DEPTH/2,VETO_DEPTH/2); // Bottom gamma veto
 
   // Loop the event tree and decode the position
   
@@ -314,34 +314,53 @@ void PlotCaloMap(string branchName)
   for( int iEntry = 0; iEntry < nEntries; iEntry++ )
   {
     tree->GetEntry(iEntry);
-    cout<<"---"<<endl;
+    // Populate these with which histogram we will fill and what cell
+    int xValue=0;
+    int yValue=0;
+    TH2I *whichHistogram=0;
     if (caloHits->size()>0)
     {
       for (int i=0;i<caloHits->size();i++)
       {
         string thisHit=caloHits->at(i);
-        cout<<thisHit<<endl;
+        //cout<<thisHit<<endl;
         if (thisHit.length()>=9)
         {
           //Now to decode it
           string wallType = thisHit.substr(1,4);
-          cout<<wallType<<endl;
           
           if (wallType=="1302") // Main walls
           {
-            cout<<"main"<<endl;
-            //bool isFrance=(thisHit.substr(8,1)=="1");
-            //cout<<thisHit<<" is in "<<(isFrance?"France":"Italy")<<endl;
+            bool isFrance=(thisHit.substr(8,1)=="1");
+            if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+            string useThisToParse = thisHit;
+            
+            // Hacky way to get the bit between the 2nd and 3rd "." characters for x
+            int pos=useThisToParse.find('.');
+            useThisToParse=useThisToParse.substr(pos+1);
+            pos=useThisToParse.find('.');
+            useThisToParse=useThisToParse.substr(pos+1);
+            pos=useThisToParse.find('.');
+            std::string::size_type sz;   // alias of size_t
+            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+
+            // and the bit before the next . characters for y
+            useThisToParse=useThisToParse.substr(pos+1);
+            pos=useThisToParse.find_first_of('.');
+            yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+            //cout<<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
           }
           else if (wallType == "1232") //x walls
           {
-            cout<<"x wall"<<endl;
-            //bool isTunnel=(thisHit.substr(8,1)=="1");
+            bool isTunnel=(thisHit.substr(10,1)=="1");
+            if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
+            cout<<iEntry <<" is xwall"<<endl;
           }
           else if (wallType == "1252") // veto walls
           {
-            cout<<"veto"<<endl;
-            //bool isTop=(thisHit.substr(8,1)=="1");
+            bool isTop=(thisHit.substr(10,1)=="1");
+            if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
+            cout<<thisHit<<" is in "<<(isTop?"top":"bottom")<<endl;
           }
           else
           {
