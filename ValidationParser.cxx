@@ -297,8 +297,8 @@ void PlotCaloMap(string branchName)
   TH2I *hFrance = new TH2I("france","France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
   TH2I *hTunnel = new TH2I("tunnel","Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
   TH2I *hMountain = new TH2I("mountain","Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2I *hTop = new TH2I("top","Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,-1*VETO_DEPTH/2,VETO_DEPTH/2); //Top gamma veto
-  TH2I *hBottom = new TH2I("bottom","Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,-1*VETO_DEPTH/2,VETO_DEPTH/2); // Bottom gamma veto
+  TH2I *hTop = new TH2I("top","Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+  TH2I *hBottom = new TH2I("bottom","Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
 
   // Loop the event tree and decode the position
   
@@ -373,14 +373,25 @@ void PlotCaloMap(string branchName)
             yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
             if (!isFrance)xValue = -1 * (xValue + 1); // Italy is on the left so reverse these to draw them
             
-            cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
+ //           cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
 
           }
           else if (wallType == "1252") // veto walls
           {
             bool isTop=(thisHit.substr(10,1)=="1");
             if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
-            cout<<thisHit<<" is in "<<(isTop?"top":"bottom")<<endl;
+            string useThisToParse = thisHit;
+            int pos=useThisToParse.find('.');
+            for (int j=0;j<4;j++)
+            {
+              useThisToParse=useThisToParse.substr(pos+1);
+              pos=useThisToParse.find('.');
+            }
+            
+            std::string::size_type sz;   // alias of size_t
+            xValue=(isFrance?1:0);
+            yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+ //           cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
           }
           else
           {
