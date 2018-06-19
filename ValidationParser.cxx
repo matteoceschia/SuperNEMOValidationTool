@@ -389,7 +389,12 @@ void PlotCaloMap(string branchName)
             yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
             if (!isFrance)xValue = -1 * (xValue + 1); // Italy is on the left so reverse these to draw them
             
- //           cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
+            if (isTunnel) // Switch it so France is on the left for the tunnel side
+            {
+              xValue = -1 * (xValue + 1);
+            }
+            
+         cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
 
           }
           else if (wallType == "1252") // veto walls
