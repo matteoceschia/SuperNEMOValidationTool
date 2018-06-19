@@ -39,13 +39,8 @@ int main(int argc, char **argv)
  */
 void ParseRootFile(string rootFileName, string configFileName)
 {
-  plotdir = "plots";
-  boost::filesystem::path dir(plotdir.c_str());
-  if(boost::filesystem::create_directory(dir))
-  {
-    cout<< "Directory Created: "<<plotdir<<std::endl;
-  }
-  // Check the root file can be opened and contains a tree with the right name
+
+  // Check the input root file can be opened and contains a tree with the right name
   cout<<"Processing "<<rootFileName<<endl;
   TFile *rootFile;
 
@@ -81,8 +76,19 @@ void ParseRootFile(string rootFileName, string configFileName)
     configParams=LoadConfig(configFile);
   }
   
+  // Make a directory to put the plots in
+  plotdir = "plots";
+  boost::filesystem::path dir(plotdir.c_str());
+  if(boost::filesystem::create_directory(dir))
+  {
+    cout<< "Directory Created: "<<plotdir<<std::endl;
+  }
+  // In the plots directory, make an output ROOT file for the histograms
+  TFile *outputFile=new TFile("plots/ValidationHistograms.root","RECREATE");
+  outputFile->cd();
+  
   // Get a list of all the branches in the tree
-  TObjArray* branches = tree->GetListOfBranches	(		);
+  TObjArray* branches = tree->GetListOfBranches();
   TIter next(branches);
   TBranch *branch;
   
@@ -94,6 +100,7 @@ void ParseRootFile(string rootFileName, string configFileName)
   }
   
   if (configFile.is_open()) configFile.close();
+  outputFile->Close();
   return;
 }
 
@@ -257,6 +264,7 @@ void Plot1DHistogram(string branchName)
   h->SetFillColor(kPink-6);
   h->SetFillStyle(1);
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
+  h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
 }
@@ -293,12 +301,12 @@ void PlotCaloMap(string branchName)
   int VETO_DEPTH = 2;
   int VETO_WIDTH = 16;
   
-  TH2I *hItaly = new TH2I("italy","Italy",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2I *hFrance = new TH2I("france","France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2I *hTunnel = new TH2I("tunnel","Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2I *hMountain = new TH2I("mountain","Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2I *hTop = new TH2I("top","Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2I *hBottom = new TH2I("bottom","Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+  TH2I *hItaly = new TH2I(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+  TH2I *hFrance = new TH2I(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+  TH2I *hTunnel = new TH2I(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+  TH2I *hMountain = new TH2I(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+  TH2I *hTop = new TH2I(("plt_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+  TH2I *hBottom = new TH2I(("plt_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
 
   // Loop the event tree and decode the position
   
@@ -318,6 +326,8 @@ void PlotCaloMap(string branchName)
     int xValue=0;
     int yValue=0;
     TH2I *whichHistogram=0;
+    // This should always work, but there is next to no catching of badly formatted
+    // geom ID strings. Are they a possibility?
     if (caloHits->size()>0)
     {
       for (int i=0;i<caloHits->size();i++)
@@ -389,18 +399,29 @@ void PlotCaloMap(string branchName)
             }
             
             std::string::size_type sz;   // alias of size_t
-            xValue=(isFrance?1:0);
-            yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
- //           cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
+            yValue=(isFrance?1:0);
+            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+            // cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
           }
           else
           {
             cout<<"WARNING -- Calo hit found with unknown wall type "<<wallType<<endl;
+            continue; // We can't plot it if we don't know where to plot it
           }
           
-        }
-      }
-    }
+          // Now we know which histogram and the coordinates so write it
+          //cout<<"Filling "<<whichHistogram->GetName()<<" with "<<xValue<<":"<<yValue;
+          whichHistogram->Fill(xValue,yValue);
+          
+        }// end parsable string
+      } // end for each hit
+    } // End if there are calo hits
+    hFrance->Write("",TObject::kOverwrite);
+    hItaly->Write("",TObject::kOverwrite);
+    hTunnel->Write("",TObject::kOverwrite);
+    hMountain->Write("",TObject::kOverwrite);
+    hTop->Write("",TObject::kOverwrite);
+    hBottom->Write("",TObject::kOverwrite);
   }
   
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),1200,1200);
@@ -453,7 +474,7 @@ void PlotTrackerMap(string branchName)
   WriteLabel(.7,.5,"France");
   WriteLabel(0.4,.8,"Tunnel");
   WriteLabel(.4,.15,"Mountain");
-  
+  h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
 }
