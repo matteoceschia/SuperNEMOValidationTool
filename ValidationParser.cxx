@@ -529,9 +529,6 @@ string BranchNameToEnglish(string branchname)
 void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom)
 {
   TCanvas *c = new TCanvas ("caloplots","caloplots",2000,1000);
-
-  
-  
   std::vector <TH2*> histos;
   histos.push_back(hItaly);
   histos.push_back(hFrance);
@@ -554,10 +551,13 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
                            "",0.5,0.2,.6,0.8,0);
   // 16x2
   TPad *pTop = new TPad("p_top",
-                        "",0.1,0.8,0.5,0.9,0);
+                        "",0.1,0.8,0.5,.98,0);
   //16 x2
   TPad *pBottom = new TPad("p_bottom",
-                           "",0.1,0.1,0.5,0.2,0);
+                           "",0.1,0.02,0.5,0.2,0);
+  TPad *pTitle = new TPad("p_title",
+                          "",0.6,0.8,0.95,1,0);
+  pTitle->Draw();
   
   std::vector <TPad*> pads;
   pads.push_back(pItaly);
@@ -568,10 +568,10 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   pads.push_back(pBottom);
   
   
-  hBottom->GetYaxis()->SetBinLabel(1,"France");
-  hBottom->GetYaxis()->SetBinLabel(2,"Italy");
-  hTop->GetYaxis()->SetBinLabel(2,"France");
-  hTop->GetYaxis()->SetBinLabel(1,"Italy");
+  hBottom->GetYaxis()->SetBinLabel(2,"France");
+  hBottom->GetYaxis()->SetBinLabel(1,"Italy");
+  hTop->GetYaxis()->SetBinLabel(1,"France");
+  hTop->GetYaxis()->SetBinLabel(2,"Italy");
   
   gStyle->SetOptTitle(0);
   
@@ -592,7 +592,6 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
     histos.at(i)->GetYaxis()->SetNdivisions(histos.at(i)->GetNbinsY());
     histos.at(i)->GetXaxis()->SetNdivisions(histos.at(i)->GetNbinsX());
     histos.at(i)->GetXaxis()->CenterLabels();
-    
     histos.at(i)->GetYaxis()->CenterLabels();
     
   }
@@ -609,6 +608,12 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   pMountain->cd();
   hMountain->GetYaxis()->SetLabelSize(0.1);
   hMountain->GetYaxis()->SetLabelOffset(0.01);
+  hMountain->GetXaxis()->SetBinLabel(1,"It.");
+  hMountain->GetXaxis()->SetBinLabel(2,"");
+  hMountain->GetXaxis()->SetBinLabel(3,"");
+  hMountain->GetXaxis()->SetBinLabel(4,"Fr.");
+  hMountain->GetXaxis()->SetLabelSize(0.2);
+  
   hMountain->Draw("COL");
   WriteLabel(.2,.95,"Mountain",0.15);
   // Draw on the source foil
@@ -621,6 +626,13 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   pTunnel->cd();
   hTunnel->GetYaxis()->SetLabelSize(0.1);
   hTunnel->GetYaxis()->SetLabelOffset(0.01);
+  
+  
+  hTunnel->GetXaxis()->SetBinLabel(1,"Fr.");
+  hTunnel->GetXaxis()->SetBinLabel(2,"");
+  hTunnel->GetXaxis()->SetBinLabel(3,"");
+  hTunnel->GetXaxis()->SetBinLabel(4,"It.");
+  hTunnel->GetXaxis()->SetLabelSize(0.2);
   hTunnel->Draw("COL");
   WriteLabel(.25,.95,"Tunnel",0.15);
   foil->Draw("SAME");
@@ -628,18 +640,26 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   // Top veto wall
   pTop->cd();
   hTop->Draw("COL");
+  hTop->GetXaxis()->SetLabelSize(0.1);
+  hTop->GetYaxis()->SetLabelSize(0.15);
   TLine *foilveto=new TLine(0,1,16,1);
   foilveto->SetLineColor(kGray+3);
   foilveto->SetLineWidth(5);
   foilveto->Draw("SAME");
-  WriteLabel(.45,.2,"Top",0.3);
+  WriteLabel(.42,.2,"Top",0.2);
   
   
   // Bottom veto wall
   pBottom->cd();
+  hBottom->GetXaxis()->SetLabelSize(0.1);
+  hBottom->GetYaxis()->SetLabelSize(0.15);
   hBottom->Draw("COL");
   foilveto->Draw("SAME");
-  WriteLabel(.4,.6,"Bottom",0.3);
+  WriteLabel(.42,.6,"Bottom",0.2);
+  
+  
+  pTitle->cd();
+  WriteLabel(.1,.5,title,0.3);
 
   
   
