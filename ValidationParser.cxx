@@ -480,10 +480,10 @@ void PlotTrackerMap(string branchName)
 }
 
 // Just a quick routine to write text at a (x,y) coordinate
-// If we want anything at 90 degrees we can use the rotate but I haven't implemented that yet
-void WriteLabel(double x, double y, string text, bool rotate)
+void WriteLabel(double x, double y, string text, bool big)
 {
   TText *txt = new TText(x,y,text.c_str());
+  if (big)txt->SetTextSize(0.15);
   txt->SetNDC();
   txt->Draw();
 
@@ -529,24 +529,82 @@ string BranchNameToEnglish(string branchname)
 void PrintCaloPlots(string branchName, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom)
 {
   TCanvas *c = new TCanvas ("caloplots","caloplots",2000,1000);
+//  //First, 20x13
+//  TPad *pItaly = new TPad("p_italy",
+//                          "",0,0.2,0.40,0.8,0);
+//  // Third 20x13
+//  TPad *pFrance = new TPad("p_france",
+//                           "",0.5,0.2,0.9,0.8,0);
+//  // Second, 4x16
+//  TPad *pMountain = new TPad("p_mountain",
+//                             "",0.4,0.2,0.5,0.8,0);
+//  // Fourth 4x16
+//  TPad *pTunnel = new TPad("p_tunnel",
+//                           "",0.9,0.2,1,0.8,0);
+//  // 16x2
+//  TPad *pTop = new TPad("p_top",
+//                        "",0.5,0.8,0.9,0.9,0);
+//  //16 x2
+//  TPad *pBottom = new TPad("p_bottom",
+//                           "",0.5,0.1,0.9,0.2,0);
+//  pItaly->Draw();
+//  pFrance->Draw();
+//  pMountain->Draw();
+//  pTunnel->Draw();
+//  pTop->Draw();
+//  pBottom->Draw();
+//  
+//  pItaly->cd();
+//  hItaly->Draw("COLZ");
+//  pFrance->cd();
+//  hFrance->Draw("COLZ");
+//  pMountain->cd();
+//  hMountain->Draw("COLZ");
+//  pTunnel->cd();
+//  hTunnel->Draw("COLZ");
+//  pTop->cd();
+//  hTop->Draw("COLZ");
+//  pBottom->cd();
+//  hBottom->Draw("COLZ");
+  
+  
+  
+  std::vector <TH2*> histos;
+  histos.push_back(hItaly);
+  histos.push_back(hFrance);
+  histos.push_back(hTunnel);
+  histos.push_back(hMountain);
+  histos.push_back(hTop);
+  histos.push_back(hBottom);
+  
   //First, 20x13
   TPad *pItaly = new TPad("p_italy",
-                          "",0,0.2,0.40,0.8,0);
+                          "",0.6,0.2,1,0.8,0);
   // Third 20x13
   TPad *pFrance = new TPad("p_france",
-                           "",0.5,0.2,0.9,0.8,0);
+                           "",0.1,0.2,0.5,0.8,0);
   // Second, 4x16
   TPad *pMountain = new TPad("p_mountain",
-                             "",0.4,0.2,0.5,0.8,0);
+                             "",0,0.2,0.1,0.8,0);
   // Fourth 4x16
   TPad *pTunnel = new TPad("p_tunnel",
-                           "",0.9,0.2,1,0.8,0);
+                           "",0.5,0.2,.6,0.8,0);
   // 16x2
   TPad *pTop = new TPad("p_top",
-                        "",0.5,0.8,0.9,0.9,0);
+                        "",0.1,0.8,0.5,0.9,0);
   //16 x2
   TPad *pBottom = new TPad("p_bottom",
-                           "",0.5,0.1,0.9,0.2,0);
+                           "",0.1,0.1,0.5,0.2,0);
+  
+  
+  
+  
+  hBottom->GetYaxis()->SetBinLabel(1,"France");
+  hBottom->GetYaxis()->SetBinLabel(2,"Italy");
+  hTop->GetYaxis()->SetBinLabel(2,"France");
+  hTop->GetYaxis()->SetBinLabel(1,"Italy");
+  
+  
   pItaly->Draw();
   pFrance->Draw();
   pMountain->Draw();
@@ -554,18 +612,38 @@ void PrintCaloPlots(string branchName, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2
   pTop->Draw();
   pBottom->Draw();
   
+  gStyle->SetOptTitle(0);
+  
+  
+  // Set them all to the same scale; first work out what it should be
+  double max=-9999;
+  for (int i=0;i<histos.size();i++)
+  {
+    max=TMath::Max(max,(double)histos.at(i)->GetMaximum());
+  }
+  
+  
+  for (int i=0;i<histos.size();i++)
+  {
+    histos.at(i)->GetZaxis()->SetRangeUser(0,max);
+  }
+  
   pItaly->cd();
-  hItaly->Draw("COLZ");
+  hItaly->Draw("COLZ"); // Only have the scale over on the right
+  WriteLabel(.45,.95,"Italy");
   pFrance->cd();
-  hFrance->Draw("COLZ");
+  hFrance->Draw("COL");
+  WriteLabel(.4,.95,"France");
   pMountain->cd();
-  hMountain->Draw("COLZ");
+  hMountain->Draw("COL");
+  WriteLabel(.2,.95,"Mountain",true);
   pTunnel->cd();
-  hTunnel->Draw("COLZ");
+  hTunnel->Draw("COL");
+  WriteLabel(.25,.95,"Tunnel",true);
   pTop->cd();
-  hTop->Draw("COLZ");
+  hTop->Draw("COL");
   pBottom->cd();
-  hBottom->Draw("COLZ");
+  hBottom->Draw("COL");
   
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
