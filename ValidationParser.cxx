@@ -416,18 +416,18 @@ void PlotCaloMap(string branchName)
         }// end parsable string
       } // end for each hit
     } // End if there are calo hits
-    hFrance->Write("",TObject::kOverwrite);
-    hItaly->Write("",TObject::kOverwrite);
-    hTunnel->Write("",TObject::kOverwrite);
-    hMountain->Write("",TObject::kOverwrite);
-    hTop->Write("",TObject::kOverwrite);
-    hBottom->Write("",TObject::kOverwrite);
   }
+  // Write the histograms to a file
+  hFrance->Write("",TObject::kOverwrite);
+  hItaly->Write("",TObject::kOverwrite);
+  hTunnel->Write("",TObject::kOverwrite);
+  hMountain->Write("",TObject::kOverwrite);
+  hTop->Write("",TObject::kOverwrite);
+  hBottom->Write("",TObject::kOverwrite);
   
-  TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),1200,1200);
-  
-  c->SaveAs((plotdir+"/"+branchName+".png").c_str());
-  delete c;
+  // Print them all to a png file
+  PrintCaloPlots(branchName,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
+
 }
 
 /**
@@ -523,4 +523,51 @@ string BranchNameToEnglish(string branchname)
   string output = branchname.substr(2,branchname.length());
   output[0]=toupper(output[0]);
   return output;
+}
+
+// Arrange all the bits of calorimeter on a canvas
+void PrintCaloPlots(string branchName, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom)
+{
+  TCanvas *c = new TCanvas ("caloplots","caloplots",2000,1000);
+  //First, 20x13
+  TPad *pItaly = new TPad("p_italy",
+                          "",0,0.2,0.40,0.8,0);
+  // Third 20x13
+  TPad *pFrance = new TPad("p_france",
+                           "",0.5,0.2,0.9,0.8,0);
+  // Second, 4x16
+  TPad *pMountain = new TPad("p_mountain",
+                             "",0.4,0.2,0.5,0.8,0);
+  // Fourth 4x16
+  TPad *pTunnel = new TPad("p_tunnel",
+                           "",0.9,0.2,1,0.8,0);
+  // 16x2
+  TPad *pTop = new TPad("p_top",
+                        "",0.5,0.8,0.9,0.9,0);
+  //16 x2
+  TPad *pBottom = new TPad("p_bottom",
+                           "",0.5,0.1,0.9,0.2,0);
+  pItaly->Draw();
+  pFrance->Draw();
+  pMountain->Draw();
+  pTunnel->Draw();
+  pTop->Draw();
+  pBottom->Draw();
+  
+  pItaly->cd();
+  hItaly->Draw("COLZ");
+  pFrance->cd();
+  hFrance->Draw("COLZ");
+  pMountain->cd();
+  hMountain->Draw("COLZ");
+  pTunnel->cd();
+  hTunnel->Draw("COLZ");
+  pTop->cd();
+  hTop->Draw("COLZ");
+  pBottom->cd();
+  hBottom->Draw("COLZ");
+  
+  c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  delete c;
+  return;
 }
