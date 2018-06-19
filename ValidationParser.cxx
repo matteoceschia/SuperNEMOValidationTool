@@ -5,6 +5,12 @@ bool hasConfig=true;
 TTree *tree;
 map<string,string> configParams;
 string plotdir;
+int MAINWALL_WIDTH = 20;
+int MAINWALL_HEIGHT = 13;
+int XWALL_DEPTH = 4;
+int XWALL_HEIGHT = 16;
+int VETO_DEPTH = 2;
+int VETO_WIDTH = 16;
 
 /**
  *  main function
@@ -294,14 +300,9 @@ void PlotCaloMap(string branchName)
   }
   
   // Make 6 2-dimensional histograms for the 6 walls
-  int MAINWALL_WIDTH = 20;
-  int MAINWALL_HEIGHT = 13;
-  int XWALL_DEPTH = 4;
-  int XWALL_HEIGHT = 16;
-  int VETO_DEPTH = 2;
-  int VETO_WIDTH = 16;
+
   
-  TH2I *hItaly = new TH2I(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+  TH2I *hItaly = new TH2I(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
   TH2I *hFrance = new TH2I(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
   TH2I *hTunnel = new TH2I(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
   TH2I *hMountain = new TH2I(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
@@ -359,6 +360,11 @@ void PlotCaloMap(string branchName)
             useThisToParse=useThisToParse.substr(pos+1);
             pos=useThisToParse.find_first_of('.');
             yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+            
+            // The numbering is from mountain to tunnel
+            // But we draw the Italian side as we see it, with the mountain on the left
+            // So let's flip it around
+            if (!isFrance)xValue = -1 * (xValue + 1);
             //cout<<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
           }
           else if (wallType == "1232") //x walls
@@ -401,7 +407,7 @@ void PlotCaloMap(string branchName)
             std::string::size_type sz;   // alias of size_t
             yValue=(isFrance?1:0);
             xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            // cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
+            cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
           }
           else
           {
@@ -596,10 +602,18 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
     
   }
   
-  // Main walls
+  // Italian Main wall
   pItaly->cd();
+  for (int i=1;i<=hItaly->GetNbinsX();i++)
+  {
+    hItaly->GetXaxis()->SetBinLabel(i,(to_string(MAINWALL_WIDTH-i)).c_str());
+  }
+  
+  hItaly->GetXaxis()->SetLabelSize(0.06);
   hItaly->Draw("COLZ"); // Only have the scale over on the right
   WriteLabel(.45,.95,"Italy");
+  
+  // French main wall
   pFrance->cd();
   hFrance->Draw("COL");
   WriteLabel(.4,.95,"France");
