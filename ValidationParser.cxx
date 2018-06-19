@@ -365,7 +365,7 @@ void PlotCaloMap(string branchName)
             // But we draw the Italian side as we see it, with the mountain on the left
             // So let's flip it around
             if (!isFrance)xValue = -1 * (xValue + 1);
-            //cout<<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
+            //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<xValue<<":"<<yValue<<endl;
           }
           else if (wallType == "1232") //x walls
           {
@@ -394,7 +394,7 @@ void PlotCaloMap(string branchName)
               xValue = -1 * (xValue + 1);
             }
             
-         cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
+         //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
 
           }
           else if (wallType == "1252") // veto walls
