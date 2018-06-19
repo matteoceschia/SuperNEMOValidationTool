@@ -405,9 +405,9 @@ void PlotCaloMap(string branchName)
             }
             
             std::string::size_type sz;   // alias of size_t
-            yValue=(isFrance?1:0);
+            yValue=((isFrance^isTop)?1:0); // We flip this so that French side is inwards on the print
             xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            cout<<iEntry<<" : " <<thisHit<<" - "<<xValue<<":"<<yValue<<endl;
+            //cout<<iEntry<<" : " <<(isFrance?"Fr.":"It")<<" "<<(isTop?"top ":"bottom ")<<xValue<<endl;
           }
           else
           {
