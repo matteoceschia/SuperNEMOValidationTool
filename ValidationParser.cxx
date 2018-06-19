@@ -426,7 +426,7 @@ void PlotCaloMap(string branchName)
   hBottom->Write("",TObject::kOverwrite);
   
   // Print them all to a png file
-  PrintCaloPlots(branchName,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
+  PrintCaloPlots(branchName,title,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
 
 }
 
@@ -480,10 +480,10 @@ void PlotTrackerMap(string branchName)
 }
 
 // Just a quick routine to write text at a (x,y) coordinate
-void WriteLabel(double x, double y, string text, bool big)
+void WriteLabel(double x, double y, string text, double size)
 {
   TText *txt = new TText(x,y,text.c_str());
-  if (big)txt->SetTextSize(0.15);
+  txt->SetTextSize(size);
   txt->SetNDC();
   txt->Draw();
 
@@ -526,47 +526,10 @@ string BranchNameToEnglish(string branchname)
 }
 
 // Arrange all the bits of calorimeter on a canvas
-void PrintCaloPlots(string branchName, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom)
+void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom)
 {
   TCanvas *c = new TCanvas ("caloplots","caloplots",2000,1000);
-//  //First, 20x13
-//  TPad *pItaly = new TPad("p_italy",
-//                          "",0,0.2,0.40,0.8,0);
-//  // Third 20x13
-//  TPad *pFrance = new TPad("p_france",
-//                           "",0.5,0.2,0.9,0.8,0);
-//  // Second, 4x16
-//  TPad *pMountain = new TPad("p_mountain",
-//                             "",0.4,0.2,0.5,0.8,0);
-//  // Fourth 4x16
-//  TPad *pTunnel = new TPad("p_tunnel",
-//                           "",0.9,0.2,1,0.8,0);
-//  // 16x2
-//  TPad *pTop = new TPad("p_top",
-//                        "",0.5,0.8,0.9,0.9,0);
-//  //16 x2
-//  TPad *pBottom = new TPad("p_bottom",
-//                           "",0.5,0.1,0.9,0.2,0);
-//  pItaly->Draw();
-//  pFrance->Draw();
-//  pMountain->Draw();
-//  pTunnel->Draw();
-//  pTop->Draw();
-//  pBottom->Draw();
-//  
-//  pItaly->cd();
-//  hItaly->Draw("COLZ");
-//  pFrance->cd();
-//  hFrance->Draw("COLZ");
-//  pMountain->cd();
-//  hMountain->Draw("COLZ");
-//  pTunnel->cd();
-//  hTunnel->Draw("COLZ");
-//  pTop->cd();
-//  hTop->Draw("COLZ");
-//  pBottom->cd();
-//  hBottom->Draw("COLZ");
-  
+
   
   
   std::vector <TH2*> histos;
@@ -585,7 +548,7 @@ void PrintCaloPlots(string branchName, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2
                            "",0.1,0.2,0.5,0.8,0);
   // Second, 4x16
   TPad *pMountain = new TPad("p_mountain",
-                             "",0,0.2,0.1,0.8,0);
+                             "",0.02,0.2,0.12,0.8,0);
   // Fourth 4x16
   TPad *pTunnel = new TPad("p_tunnel",
                            "",0.5,0.2,.6,0.8,0);
@@ -596,7 +559,13 @@ void PrintCaloPlots(string branchName, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2
   TPad *pBottom = new TPad("p_bottom",
                            "",0.1,0.1,0.5,0.2,0);
   
-  
+  std::vector <TPad*> pads;
+  pads.push_back(pItaly);
+  pads.push_back(pTunnel);
+  pads.push_back(pFrance);
+  pads.push_back(pMountain);
+  pads.push_back(pTop);
+  pads.push_back(pBottom);
   
   
   hBottom->GetYaxis()->SetBinLabel(1,"France");
@@ -604,46 +573,75 @@ void PrintCaloPlots(string branchName, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2
   hTop->GetYaxis()->SetBinLabel(2,"France");
   hTop->GetYaxis()->SetBinLabel(1,"Italy");
   
-  
-  pItaly->Draw();
-  pFrance->Draw();
-  pMountain->Draw();
-  pTunnel->Draw();
-  pTop->Draw();
-  pBottom->Draw();
-  
   gStyle->SetOptTitle(0);
-  
   
   // Set them all to the same scale; first work out what it should be
   double max=-9999;
   for (int i=0;i<histos.size();i++)
   {
     max=TMath::Max(max,(double)histos.at(i)->GetMaximum());
+    // While we are here, let's draw the pads
+    pads.at(i)->Draw();pads.at(i)->SetGrid();
   }
   
-  
+  gStyle->SetGridStyle(3);
+  gStyle->SetGridColor(kGray);
   for (int i=0;i<histos.size();i++)
   {
     histos.at(i)->GetZaxis()->SetRangeUser(0,max);
+    histos.at(i)->GetYaxis()->SetNdivisions(histos.at(i)->GetNbinsY());
+    histos.at(i)->GetXaxis()->SetNdivisions(histos.at(i)->GetNbinsX());
+    histos.at(i)->GetXaxis()->CenterLabels();
+    
+    histos.at(i)->GetYaxis()->CenterLabels();
+    
   }
   
+  // Main walls
   pItaly->cd();
   hItaly->Draw("COLZ"); // Only have the scale over on the right
   WriteLabel(.45,.95,"Italy");
   pFrance->cd();
   hFrance->Draw("COL");
   WriteLabel(.4,.95,"France");
+  
+  // Mountain x wall
   pMountain->cd();
+  hMountain->GetYaxis()->SetLabelSize(0.1);
+  hMountain->GetYaxis()->SetLabelOffset(0.01);
   hMountain->Draw("COL");
-  WriteLabel(.2,.95,"Mountain",true);
+  WriteLabel(.2,.95,"Mountain",0.15);
+  // Draw on the source foil
+  TLine *foil=new TLine(0,0,0,16);
+  foil->SetLineColor(kGray+3);
+  foil->SetLineWidth(5);
+  foil->Draw("SAME");
+  
+  // Tunnel x wall
   pTunnel->cd();
+  hTunnel->GetYaxis()->SetLabelSize(0.1);
+  hTunnel->GetYaxis()->SetLabelOffset(0.01);
   hTunnel->Draw("COL");
-  WriteLabel(.25,.95,"Tunnel",true);
+  WriteLabel(.25,.95,"Tunnel",0.15);
+  foil->Draw("SAME");
+  
+  // Top veto wall
   pTop->cd();
   hTop->Draw("COL");
+  TLine *foilveto=new TLine(0,1,16,1);
+  foilveto->SetLineColor(kGray+3);
+  foilveto->SetLineWidth(5);
+  foilveto->Draw("SAME");
+  WriteLabel(.45,.2,"Top",0.3);
+  
+  
+  // Bottom veto wall
   pBottom->cd();
   hBottom->Draw("COL");
+  foilveto->Draw("SAME");
+  WriteLabel(.4,.6,"Bottom",0.3);
+
+  
   
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;

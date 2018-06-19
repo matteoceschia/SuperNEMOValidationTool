@@ -34,5 +34,5 @@ void Plot1DHistogram(string branchName);
 void PlotTrackerMap(string branchName);
 void PlotCaloMap(string branchName);
 string BranchNameToEnglish(string branchname);
-void WriteLabel(double x, double y, string text, bool big=false);
-void PrintCaloPlots(string branchName, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom);
+void WriteLabel(double x, double y, string text, double size=0.05);
+void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom);
