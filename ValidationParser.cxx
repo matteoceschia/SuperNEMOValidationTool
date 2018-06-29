@@ -83,7 +83,15 @@ void ParseRootFile(string rootFileName, string configFileName)
   }
   
   // Make a directory to put the plots in
-  plotdir = "plots"+rootFileName;
+  string rootFileNameNoPath=rootFileName;
+  try{
+    rootFileNameNoPath=rootFileName.substr(rootFileName.find_last_of("/")+1);
+  }
+  catch (exception e)
+  {
+    rootFileNameNoPath=rootFileName;
+  }
+  plotdir = "plots"+rootFileNameNoPath;
   boost::filesystem::path dir(plotdir.c_str());
   if(boost::filesystem::create_directory(dir))
   {
