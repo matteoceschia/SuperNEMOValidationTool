@@ -98,7 +98,7 @@ void ParseRootFile(string rootFileName, string configFileName)
     cout<< "Directory Created: "<<plotdir<<std::endl;
   }
   // In the plots directory, make an output ROOT file for the histograms
-  TFile *outputFile=new TFile("plots/ValidationHistograms.root","RECREATE");
+  TFile *outputFile=new TFile((plotdir+"/ValidationHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
   
   // Get a list of all the branches in the tree
