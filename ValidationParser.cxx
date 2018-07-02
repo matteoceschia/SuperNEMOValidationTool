@@ -134,7 +134,6 @@ bool PlotVariable(string branchName)
       configFound=true;
     }
   }
-
   switch (branchName[0])
   {
     case 'h':
@@ -509,6 +508,7 @@ void PlotCaloMap(string branchName)
  */
 void PlotTrackerMap(string branchName)
 {
+  //cout<<endl;
   int maxlayers=9;
   int maxrows=113;
   
@@ -550,7 +550,9 @@ void PlotTrackerMap(string branchName)
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
   TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+  h->Sumw2(); // Important to get errors right
   TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+  hAve->Sumw2(); // Important to get errors right
   h->GetYaxis()->SetTitle("Row");
   h->GetXaxis()->SetTitle("Layer");
 
@@ -567,7 +569,9 @@ void PlotTrackerMap(string branchName)
   
   // Now we can fill the two plots
   // Loop through the tree
-  for( int iEntry = 0; iEntry < tree->GetEntries(); iEntry++ )
+  
+  int nEntries = tree -> GetEntries();
+  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
   {
     tree->GetEntry(iEntry);
     // Populate these with which histogram we will fill and what cell
@@ -600,7 +604,7 @@ void PlotTrackerMap(string branchName)
   foil->SetLineWidth(5);
   foil->Draw("SAME");
   
-  
+  // Decorate the print
   WriteLabel(.2,.5,"Italy");
   WriteLabel(.7,.5,"France");
   WriteLabel(0.4,.8,"Tunnel");
@@ -800,10 +804,13 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   
   pTitle->cd();
   WriteLabel(.1,.5,title,0.3);
-
-  
   
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
+  for (int i=0;i<histos.size();i++)
+  {
+    delete histos.at(i);
+    delete pads.at(i);
+  }
   return;
 }
