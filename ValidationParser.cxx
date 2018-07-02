@@ -522,6 +522,25 @@ void PlotTrackerMap(string branchName)
     // title is the only thing for this one
     title=GetBitBeforeComma(config); // config now has this bit chopped off ready for the next parsing stage
   }
+  
+  string fullBranchName=branchName;//This is a combo of name and parent for average branches
+  // is it an average?
+  string mapBranch=branchName;
+  bool isAverage=false;
+  if (branchName[1]=='m')
+  {
+    // In this case, the branch name should be split in two with a . character
+    int pos=branchName.find(".");
+    if (pos<=1)
+    {
+      cout<<"Error - could not find map branch for "<<branchName<<": remember to provide a map branch name with a dot"<<endl;
+      return;
+    }
+    mapBranch=branchName.substr(pos+1);
+    branchName=branchName.substr(0,pos);
+    isAverage=true;
+  }
+  
   // Set the title to a default if there isn't anything in the config file
   if (title.length()==0)
   {
@@ -531,11 +550,49 @@ void PlotTrackerMap(string branchName)
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
   TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+  TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
   h->GetYaxis()->SetTitle("Row");
   h->GetXaxis()->SetTitle("Layer");
 
   // This decodes the encoded tracker map to extract the x and y positions
-  tree->Draw(("TMath::Abs("+branchName+"/100) :" + branchName+"%100 >> plt_"+branchName).c_str(),"","COLZ");
+
+  // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
+  std::vector<int> *trackerHits = 0;
+  tree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
+  std::vector<double> *toAverage =0;
+  if (isAverage)
+  {
+    tree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
+  }
+  
+  // Now we can fill the two plots
+  // Loop through the tree
+  for( int iEntry = 0; iEntry < tree->GetEntries(); iEntry++ )
+  {
+    tree->GetEntry(iEntry);
+    // Populate these with which histogram we will fill and what cell
+    int xValue=0;
+    int yValue=0;
+    if (trackerHits->size()>0)
+    {
+      for (int i=0;i<trackerHits->size();i++)
+      {
+        yValue=TMath::Abs(trackerHits->at(i)/100);
+        xValue=trackerHits->at(i)%100;
+        if (isAverage)
+          hAve->Fill(xValue,yValue,toAverage->at(i));
+        h->Fill(xValue,yValue);
+      }
+    }
+  }
+
+  if (isAverage)
+  {
+    hAve->Divide(h);
+    h=hAve; // overwrite the temp plot with the one we actually want to save
+  }
+  
+  h->Draw("COLZ");
   
   // Annotate to make it clear what the detector layout is
   TLine *foil=new TLine(0,0,0,113);
@@ -550,6 +607,7 @@ void PlotTrackerMap(string branchName)
   WriteLabel(.4,.15,"Mountain");
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  delete h;
   delete c;
 }
 
