@@ -286,9 +286,14 @@ void Plot1DHistogram(string branchName)
  *  Plot a map of the calorimeter walls
  *  We have 6 walls in total : 2 main walls (Italy, France)
  *  2 x walls (tunnel, mountain) and 2 gamma vetos (top, bottom)
+ *  This makes two kinds of map: for c_... variables, it just adds 1 for every listed calo
+ *  for cm... variables it needs to use two branches - the cm_ one and its corresponding c_ one
+ *  and then it uses the calorimeter locations in the c_ variable to calculate the mean for
+ *  each calorimeter, based on the paired numbers in the cm_ variable
  */
 void PlotCaloMap(string branchName)
 {
+  
   string config="";
   
   string fullBranchName=branchName;//This is a combo of name and parent for average branches
@@ -350,6 +355,7 @@ void PlotCaloMap(string branchName)
   // There is one entry in the vector for each calorimeter hit in the event
   // And it will have a format something like [1302:0.1.0.10.*]
   std::vector<string> *caloHits = 0;
+  
   tree->SetBranchAddress(mapBranch.c_str(), &caloHits);
   
   std::vector<double> *toAverage =0;
@@ -500,7 +506,9 @@ void PlotCaloMap(string branchName)
   
   // Print them all to a png file
   PrintCaloPlots(branchName,title,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
+
   }
+
 }
 
 /**
@@ -508,7 +516,7 @@ void PlotCaloMap(string branchName)
  */
 void PlotTrackerMap(string branchName)
 {
-  //cout<<endl;
+  cout<<endl; // THIS LINE STOPS IT CRASHING BUT WHY?!?!
   int maxlayers=9;
   int maxrows=113;
   
@@ -664,6 +672,7 @@ string BranchNameToEnglish(string branchname)
 // Arrange all the bits of calorimeter on a canvas
 void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom)
 {
+  
   TCanvas *c = new TCanvas ("caloplots","caloplots",2000,1000);
   std::vector <TH2*> histos;
   histos.push_back(hItaly);
@@ -770,8 +779,6 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   pTunnel->cd();
   hTunnel->GetYaxis()->SetLabelSize(0.1);
   hTunnel->GetYaxis()->SetLabelOffset(0.01);
-  
-  
   hTunnel->GetXaxis()->SetBinLabel(1,"Fr.");
   hTunnel->GetXaxis()->SetBinLabel(2,"");
   hTunnel->GetXaxis()->SetBinLabel(3,"");
@@ -801,16 +808,10 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   foilveto->Draw("SAME");
   WriteLabel(.42,.6,"Bottom",0.2);
   
-  
   pTitle->cd();
   WriteLabel(.1,.5,title,0.3);
   
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
-  for (int i=0;i<histos.size();i++)
-  {
-    delete histos.at(i);
-    delete pads.at(i);
-  }
   return;
 }
