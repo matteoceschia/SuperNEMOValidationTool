@@ -278,6 +278,7 @@ void Plot1DHistogram(string branchName)
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  delete h;
   delete c;
 }
 
@@ -356,18 +357,20 @@ void PlotCaloMap(string branchName)
   // And it will have a format something like [1302:0.1.0.10.*]
   std::vector<string> *caloHits = 0;
   
-  tree->SetBranchAddress(mapBranch.c_str(), &caloHits);
+  TTree *thisTree=tree->CopyTree("");
+
+  thisTree->SetBranchAddress(mapBranch.c_str(), &caloHits);
   
   std::vector<double> *toAverage =0;
   if (isAverage)
   {
-    tree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
+    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
   }
 
   // Loop through the tree
   for( int iEntry = 0; iEntry < nEntries; iEntry++ )
   {
-    tree->GetEntry(iEntry);
+    thisTree->GetEntry(iEntry);
     // Populate these with which histogram we will fill and what cell
     int xValue=0;
     int yValue=0;
@@ -516,7 +519,7 @@ void PlotCaloMap(string branchName)
  */
 void PlotTrackerMap(string branchName)
 {
-  cout<<endl; // THIS LINE STOPS IT CRASHING BUT WHY?!?!
+  //cout<<endl; // THIS LINE STOPS IT CRASHING BUT WHY?!?!
   int maxlayers=9;
   int maxrows=113;
   
@@ -554,7 +557,8 @@ void PlotTrackerMap(string branchName)
   {
     title = BranchNameToEnglish(branchName);
   }
-  
+
+
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
   TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
@@ -568,20 +572,27 @@ void PlotTrackerMap(string branchName)
 
   // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
   std::vector<int> *trackerHits = 0;
-  tree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
-  std::vector<double> *toAverage =0;
+  
+  std::vector<double> *toAverageTrk = 0;
+  TTree *thisTree=tree->CopyTree("");
+
+  thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
+
+
   if (isAverage)
   {
-    tree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
+    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
   }
   
+  //return;
+
   // Now we can fill the two plots
   // Loop through the tree
   
   int nEntries = tree -> GetEntries();
   for( int iEntry = 0; iEntry < nEntries; iEntry++ )
   {
-    tree->GetEntry(iEntry);
+    thisTree->GetEntry(iEntry);
     // Populate these with which histogram we will fill and what cell
     int xValue=0;
     int yValue=0;
@@ -592,7 +603,7 @@ void PlotTrackerMap(string branchName)
         yValue=TMath::Abs(trackerHits->at(i)/100);
         xValue=trackerHits->at(i)%100;
         if (isAverage)
-          hAve->Fill(xValue,yValue,toAverage->at(i));
+          hAve->Fill(xValue,yValue,toAverageTrk->at(i));
         h->Fill(xValue,yValue);
       }
     }
@@ -621,6 +632,7 @@ void PlotTrackerMap(string branchName)
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete h;
   delete c;
+
 }
 
 // Just a quick routine to write text at a (x,y) coordinate
