@@ -671,12 +671,13 @@ string GetBitBeforeComma(string& input)
 string BranchNameToEnglish(string branchname)
 {
   int pos = branchname.find_first_of("_");
+  int initpos=pos;
   while (pos >=0)
   {
     branchname.replace(pos,1," ");
     pos = branchname.find_first_of("_");
   }
-  string output = branchname.substr(2,branchname.length());
+  string output = branchname.substr(initpos+1,branchname.length());
   output[0]=toupper(output[0]);
   return output;
 }
@@ -821,7 +822,7 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   WriteLabel(.42,.6,"Bottom",0.2);
   
   pTitle->cd();
-  WriteLabel(.1,.5,title,0.3);
+  WriteLabel(.1,.5,title,0.2);
   
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
