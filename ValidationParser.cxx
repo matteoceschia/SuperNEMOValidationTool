@@ -98,7 +98,7 @@ void ParseRootFile(string rootFileName, string configFileName)
     cout<< "Directory Created: "<<plotdir<<std::endl;
   }
   // In the plots directory, make an output ROOT file for the histograms
-  TFile *outputFile=new TFile("plots/ValidationHistograms.root","RECREATE");
+  TFile *outputFile=new TFile((plotdir+"/ValidationHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
   
   // Get a list of all the branches in the tree
@@ -110,7 +110,6 @@ void ParseRootFile(string rootFileName, string configFileName)
   while( (branch=(TBranch *)next() )){
     string branchName=branch->GetName();
     PlotVariable(branchName);
-
   }
   
   if (configFile.is_open()) configFile.close();
@@ -135,7 +134,6 @@ bool PlotVariable(string branchName)
       configFound=true;
     }
   }
-
   switch (branchName[0])
   {
     case 'h':
@@ -280,6 +278,7 @@ void Plot1DHistogram(string branchName)
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  delete h;
   delete c;
 }
 
@@ -288,10 +287,36 @@ void Plot1DHistogram(string branchName)
  *  Plot a map of the calorimeter walls
  *  We have 6 walls in total : 2 main walls (Italy, France)
  *  2 x walls (tunnel, mountain) and 2 gamma vetos (top, bottom)
+ *  This makes two kinds of map: for c_... variables, it just adds 1 for every listed calo
+ *  for cm... variables it needs to use two branches - the cm_ one and its corresponding c_ one
+ *  and then it uses the calorimeter locations in the c_ variable to calculate the mean for
+ *  each calorimeter, based on the paired numbers in the cm_ variable
  */
 void PlotCaloMap(string branchName)
 {
+  
   string config="";
+  
+  string fullBranchName=branchName;//This is a combo of name and parent for average branches
+  
+  // is it an average?
+  string mapBranch=branchName;
+  
+  bool isAverage=false;
+  if (branchName[1]=='m')
+  {
+    // In this case, the branch name should be split in two with a . character
+    int pos=branchName.find(".");
+    if (pos<=1)
+    {
+      cout<<"Error - could not find map branch for "<<branchName<<": remember to provide a map branch name with a dot"<<endl;
+      return;
+    }
+    mapBranch=branchName.substr(pos+1);
+    branchName=branchName.substr(0,pos);
+    isAverage=true;
+  }
+
   config=configParams[branchName]; // get the config loaded from the file if there is one
   
   string title="";
@@ -308,14 +333,20 @@ void PlotCaloMap(string branchName)
   }
   
   // Make 6 2-dimensional histograms for the 6 walls
+  TH2D *hItaly = new TH2D(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+  TH2D *hFrance = new TH2D(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+  TH2D *hTunnel = new TH2D(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+  TH2D *hMountain = new TH2D(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+  TH2D *hTop = new TH2D(("plt_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+  TH2D *hBottom = new TH2D(("plt_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
 
-  
-  TH2I *hItaly = new TH2I(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2I *hFrance = new TH2I(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2I *hTunnel = new TH2I(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2I *hMountain = new TH2I(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2I *hTop = new TH2I(("plt_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2I *hBottom = new TH2I(("plt_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+  // Make histos for avereages
+  TH2D *mItaly = new TH2D(("ave_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+  TH2D *mFrance = new TH2D(("ave_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+  TH2D *mTunnel = new TH2D(("ave_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+  TH2D *mMountain = new TH2D(("ave_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+  TH2D *mTop = new TH2D(("ave_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+  TH2D *mBottom = new TH2D(("ave_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
 
   // Loop the event tree and decode the position
   
@@ -325,16 +356,26 @@ void PlotCaloMap(string branchName)
   // There is one entry in the vector for each calorimeter hit in the event
   // And it will have a format something like [1302:0.1.0.10.*]
   std::vector<string> *caloHits = 0;
-  tree->SetBranchAddress(branchName.c_str(), &caloHits);
+  
+  TTree *thisTree=tree->CopyTree("");
+
+  thisTree->SetBranchAddress(mapBranch.c_str(), &caloHits);
+  
+  std::vector<double> *toAverage =0;
+  if (isAverage)
+  {
+    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
+  }
 
   // Loop through the tree
   for( int iEntry = 0; iEntry < nEntries; iEntry++ )
   {
-    tree->GetEntry(iEntry);
+    thisTree->GetEntry(iEntry);
     // Populate these with which histogram we will fill and what cell
     int xValue=0;
     int yValue=0;
-    TH2I *whichHistogram=0;
+    TH2D *whichHistogram=0;
+    TH2D *whichAverage=0; // this is a tad messy
     // This should always work, but there is next to no catching of badly formatted
     // geom ID strings. Are they a possibility?
     if (caloHits->size()>0)
@@ -429,13 +470,35 @@ void PlotCaloMap(string branchName)
           }
           
           // Now we know which histogram and the coordinates so write it
-          //cout<<"Filling "<<whichHistogram->GetName()<<" with "<<xValue<<":"<<yValue;
           whichHistogram->Fill(xValue,yValue);
-          
+          // This could be improved! Maybe a map of an enum to the sets of hists
+          if (whichHistogram==hFrance) whichAverage =mFrance;
+          if (whichHistogram==hItaly) whichAverage =mItaly;
+          if (whichHistogram==hTunnel) whichAverage =mTunnel;
+          if (whichHistogram==hMountain) whichAverage =mMountain;
+          if (whichHistogram==hTop) whichAverage =mTop;
+          if (whichHistogram==hBottom) whichAverage =mBottom;
+          if (isAverage)
+          {
+            whichAverage->Fill(xValue,yValue,toAverage->at(i));
+          }
         }// end parsable string
       } // end for each hit
     } // End if there are calo hits
   }
+  if (isAverage)
+  {
+    mFrance->Divide(hFrance); mFrance->Write("",TObject::kOverwrite);
+    mItaly->Divide(hItaly); mItaly->Write("",TObject::kOverwrite);
+    mTunnel->Divide(hTunnel); mTunnel->Write("",TObject::kOverwrite);
+    mMountain->Divide(hMountain); mMountain->Write("",TObject::kOverwrite);
+    mTop->Divide(hTop); mTop->Write("",TObject::kOverwrite);
+    mBottom->Divide(hBottom); mBottom->Write("",TObject::kOverwrite);
+    
+    // Print them all to a png file
+    PrintCaloPlots(branchName,title,mItaly,mFrance,mTunnel,mMountain,mTop,mBottom);
+  }
+  else{
   // Write the histograms to a file
   hFrance->Write("",TObject::kOverwrite);
   hItaly->Write("",TObject::kOverwrite);
@@ -447,6 +510,8 @@ void PlotCaloMap(string branchName)
   // Print them all to a png file
   PrintCaloPlots(branchName,title,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
 
+  }
+
 }
 
 /**
@@ -454,6 +519,7 @@ void PlotCaloMap(string branchName)
  */
 void PlotTrackerMap(string branchName)
 {
+  //cout<<endl; // THIS LINE STOPS IT CRASHING BUT WHY?!?!
   int maxlayers=9;
   int maxrows=113;
   
@@ -467,20 +533,89 @@ void PlotTrackerMap(string branchName)
     // title is the only thing for this one
     title=GetBitBeforeComma(config); // config now has this bit chopped off ready for the next parsing stage
   }
+  
+  string fullBranchName=branchName;//This is a combo of name and parent for average branches
+  // is it an average?
+  string mapBranch=branchName;
+  bool isAverage=false;
+  if (branchName[1]=='m')
+  {
+    // In this case, the branch name should be split in two with a . character
+    int pos=branchName.find(".");
+    if (pos<=1)
+    {
+      cout<<"Error - could not find map branch for "<<branchName<<": remember to provide a map branch name with a dot"<<endl;
+      return;
+    }
+    mapBranch=branchName.substr(pos+1);
+    branchName=branchName.substr(0,pos);
+    isAverage=true;
+  }
+  
   // Set the title to a default if there isn't anything in the config file
   if (title.length()==0)
   {
     title = BranchNameToEnglish(branchName);
   }
-  
+
+
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
-  TH2I *h = new TH2I(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+  TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+  h->Sumw2(); // Important to get errors right
+  TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+  hAve->Sumw2(); // Important to get errors right
   h->GetYaxis()->SetTitle("Row");
   h->GetXaxis()->SetTitle("Layer");
 
   // This decodes the encoded tracker map to extract the x and y positions
-  tree->Draw(("TMath::Abs("+branchName+"/100) :" + branchName+"%100 >> plt_"+branchName).c_str(),"","COLZ");
+
+  // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
+  std::vector<int> *trackerHits = 0;
+  
+  std::vector<double> *toAverageTrk = 0;
+  TTree *thisTree=tree->CopyTree("");
+
+  thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
+
+
+  if (isAverage)
+  {
+    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
+  }
+  
+  //return;
+
+  // Now we can fill the two plots
+  // Loop through the tree
+  
+  int nEntries = tree -> GetEntries();
+  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
+  {
+    thisTree->GetEntry(iEntry);
+    // Populate these with which histogram we will fill and what cell
+    int xValue=0;
+    int yValue=0;
+    if (trackerHits->size()>0)
+    {
+      for (int i=0;i<trackerHits->size();i++)
+      {
+        yValue=TMath::Abs(trackerHits->at(i)/100);
+        xValue=trackerHits->at(i)%100;
+        if (isAverage)
+          hAve->Fill(xValue,yValue,toAverageTrk->at(i));
+        h->Fill(xValue,yValue);
+      }
+    }
+  }
+
+  if (isAverage)
+  {
+    hAve->Divide(h);
+    h=hAve; // overwrite the temp plot with the one we actually want to save
+  }
+  
+  h->Draw("COLZ");
   
   // Annotate to make it clear what the detector layout is
   TLine *foil=new TLine(0,0,0,113);
@@ -488,14 +623,16 @@ void PlotTrackerMap(string branchName)
   foil->SetLineWidth(5);
   foil->Draw("SAME");
   
-  
+  // Decorate the print
   WriteLabel(.2,.5,"Italy");
   WriteLabel(.7,.5,"France");
   WriteLabel(0.4,.8,"Tunnel");
   WriteLabel(.4,.15,"Mountain");
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  delete h;
   delete c;
+
 }
 
 // Just a quick routine to write text at a (x,y) coordinate
@@ -534,12 +671,13 @@ string GetBitBeforeComma(string& input)
 string BranchNameToEnglish(string branchname)
 {
   int pos = branchname.find_first_of("_");
+  int initpos=pos;
   while (pos >=0)
   {
     branchname.replace(pos,1," ");
     pos = branchname.find_first_of("_");
   }
-  string output = branchname.substr(2,branchname.length());
+  string output = branchname.substr(initpos+1,branchname.length());
   output[0]=toupper(output[0]);
   return output;
 }
@@ -547,6 +685,7 @@ string BranchNameToEnglish(string branchname)
 // Arrange all the bits of calorimeter on a canvas
 void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom)
 {
+  
   TCanvas *c = new TCanvas ("caloplots","caloplots",2000,1000);
   std::vector <TH2*> histos;
   histos.push_back(hItaly);
@@ -653,8 +792,6 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   pTunnel->cd();
   hTunnel->GetYaxis()->SetLabelSize(0.1);
   hTunnel->GetYaxis()->SetLabelOffset(0.01);
-  
-  
   hTunnel->GetXaxis()->SetBinLabel(1,"Fr.");
   hTunnel->GetXaxis()->SetBinLabel(2,"");
   hTunnel->GetXaxis()->SetBinLabel(3,"");
@@ -684,11 +821,8 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   foilveto->Draw("SAME");
   WriteLabel(.42,.6,"Bottom",0.2);
   
-  
   pTitle->cd();
-  WriteLabel(.1,.5,title,0.3);
-
-  
+  WriteLabel(.1,.5,title,0.2);
   
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
