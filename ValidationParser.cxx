@@ -21,18 +21,69 @@ int main(int argc, char **argv)
   gStyle->SetOptStat(0);
   if (argc < 2)
   {
-    cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
+    //cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
+    cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
     return -1;
   }
-  string rootFileName (argv[1]);
+  // This bit is kept for compatibility with old version that would take just a root file name and a config file name
+  string dataFileInput="";
+  string referenceFileInput="";
+  string configFileInput="";
   if (argc == 2)
   {
-    ParseRootFile(rootFileName);
+    dataFileInput = argv[1];
   }
-  if (argc >=3)
+  else if (argc == 3 && argv[1][0]!= '-')
   {
-    string configFileName (argv[2]);
-    ParseRootFile(rootFileName,configFileName);
+    dataFileInput = argv[1];
+    configFileInput = (argv[2]);
+  }
+  else
+  {
+    int flag=0;
+    while ((flag = getopt (argc, argv, "i:r:c:")) != -1)
+    {
+      switch (flag)
+      {
+        case 'i':
+          dataFileInput = optarg;
+          break;
+        case 'r':
+          referenceFileInput = optarg;
+          break;
+        case 'c':
+          configFileInput = optarg;
+          break;
+        case '?':
+          if (optopt == 'i' || optopt == 'r' || optopt == 'c')
+            fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+          else if (isprint (optopt))
+            fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+          else
+            fprintf (stderr,
+                     "Unknown option character `\\x%x'.\n",
+                     optopt);
+          return 1;
+        default:
+          abort ();
+      }
+    }
+  }
+  
+  bool hasDataFile = dataFileInput.length()>0;
+  bool hasReferenceFile = referenceFileInput.length()>0;
+  bool hasConfigFile = configFileInput.length()>0;
+  
+  if (!hasDataFile)
+  {
+    cout<<"ERROR: Data file name is needed."<<endl;
+    cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
+    return -1;
+  }
+  if (!hasReferenceFile)
+  {
+    if (hasConfigFile) ParseRootFile(dataFileInput,configFileInput);
+    else ParseRootFile(dataFileInput);
   }
   return 0;
 }

@@ -21,12 +21,17 @@ As well as storing images of the plots of each variable, the histograms are writ
 In the longer term, there will be an option to pass in two ROOT files; in this case, one of the files will be used as a reference and various quantities will be calculated based on how well the two files match (ratio/pull plots, goodness of fit numbers). This is not yet available.
 
 ## Usage
-`./ValidationParser <root file> <config file (optional)>`
+`./ValidationParser -i <data ROOT file> -r <reference ROOT file to compare to> -c <config file (optional)>`
 
 The root file should contain branches that you want to histogram. The naming convention is important and will be explained below. See the example ReconstructionValidationModule for details of how to make an ntuple with correctly named/formatted branches.
 
-The configuration file (which will also be explained below) is optional, and allows you to set a title for the plots
+The configuration file (which will also be explained below) is optional, and allows you to set a title for the plots.
 
+If a reference file is given it will (eventually) be used to make comparison and ratio plots, and calculate goodness of fit.
+
+The old syntax of
+`./ValidationParser <data ROOT file> <config file (optional)>`
+also still works, to maintain backwards compatibility.
 ## Ntuple format
 
 There are currently 5 supported branch types, each denoted by a particular prefix. This information is taken from example ReconstructionValidationModule.
