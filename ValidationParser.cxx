@@ -3,6 +3,7 @@
 // Global variables
 bool hasConfig=true;
 TTree *tree;
+TTree *reftree;
 map<string,string> configParams;
 string plotdir;
 int MAINWALL_WIDTH = 20;
@@ -125,6 +126,29 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
     configParams=LoadConfig(configFile);
   }
   
+  // Check for a reference file
+  bool hasValidReference = true;
+  TFile *refFile;
+  
+  refFile = new TFile(refFileName.c_str());
+  if (refFile->IsZombie())
+  {
+    cout<<"WARNING: No valid reference ROOT file given. To generate comparison plots, provide a valid reference ROOT file.";
+    if (refFileName.length()>0) cout<<" Bad ROOT file: "<<refFileName;
+    cout <<endl;
+    hasValidReference = false;
+  }
+  if (hasValidReference)
+  {
+    reftree = (TTree*) refFile->Get(treeName.c_str()); // Name is in the .h file for now
+    // Check if it found the tree
+    if (reftree==0)
+    {
+      cout<<"WARNING: no reference data in a tree named "<<treeName<<" found in "<<refFileName<<". To generate comparison plots, provide a valid reference ROOT file."<<endl;
+      hasValidReference = false;
+    }
+  }
+
   // Make a directory to put the plots in
   string rootFileNameNoPath=rootFileName;
   try{
@@ -144,7 +168,7 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   TFile *outputFile=new TFile((plotdir+"/ValidationHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
   
-  // Get a list of all the branches in the tree
+  // Get a list of all the branches in the main tree
   TObjArray* branches = tree->GetListOfBranches();
   TIter next(branches);
   TBranch *branch;
