@@ -69,22 +69,14 @@ int main(int argc, char **argv)
       }
     }
   }
-  
-  bool hasDataFile = dataFileInput.length()>0;
-  bool hasReferenceFile = referenceFileInput.length()>0;
-  bool hasConfigFile = configFileInput.length()>0;
-  
-  if (!hasDataFile)
+
+  if (dataFileInput.length()<=0)
   {
     cout<<"ERROR: Data file name is needed."<<endl;
     cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
     return -1;
   }
-  if (!hasReferenceFile)
-  {
-    if (hasConfigFile) ParseRootFile(dataFileInput,configFileInput);
-    else ParseRootFile(dataFileInput);
-  }
+  ParseRootFile(dataFileInput,configFileInput,referenceFileInput);
   return 0;
 }
 
@@ -94,7 +86,7 @@ int main(int argc, char **argv)
  *  rootFileName: path to the ROOT file with SuperNEMO validation data
  *  configFileName: optional to specify how to plot certain variables
  */
-void ParseRootFile(string rootFileName, string configFileName)
+void ParseRootFile(string rootFileName, string configFileName, string refFileName)
 {
 
   // Check the input root file can be opened and contains a tree with the right name

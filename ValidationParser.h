@@ -30,7 +30,7 @@ string treeName="Validation";
 
 
 int main(int argc, char **argv);
-void ParseRootFile(string rootFileName, string configFileName="");
+void ParseRootFile(string rootFileName, string configFileName="", string refFileName="");
 bool PlotVariable(string branchName);
 map<string,string> LoadConfig(ifstream& configFile);
 string GetBitBeforeComma(string& input);
