@@ -358,33 +358,54 @@ void Plot1DHistogram(string branchName)
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
-  
-  // Make the reference plot with the same binning
-  TH1D *href = new TH1D(("ref_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
-  href->Sumw2();
-  href->SetLineColor(kRed);
-  reftree->Draw((branchName + ">> ref_"+branchName).c_str());
-  
-  // Normalise reference number of events to data
-  Double_t scale = (double)tree->GetEntries()/(double)reftree->GetEntries();
-  href->Scale(scale);
-
-  double maxy = h->GetMaximum()>href->GetMaximum()?h->GetMaximum()*1.1:href->GetMaximum()*1.1;
-  h->GetYaxis()->SetRangeUser(0,maxy);
-  h->Draw("E");
-  href->Draw("E SAME");
-  h->Draw("E SAME");
-  
-  // Add a legend
-  TLegend* legend = new TLegend(0.75,0.8,0.9,0.9);
-  legend->AddEntry(h, "Sample", "lep");
-  legend->Draw();
-  legend->AddEntry(href,"Reference", "lep");
-  legend->Draw();
-  
-  c->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
-
-  
+  if (hasReferenceBranch)
+  {
+    // Make the reference plot with the same binning
+    TH1D *href = new TH1D(("ref_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
+    href->Sumw2();
+    href->SetLineColor(kRed);
+    reftree->Draw((branchName + ">> ref_"+branchName).c_str());
+    
+    // Normalise reference number of events to data
+    Double_t scale = (double)tree->GetEntries()/(double)reftree->GetEntries();
+    href->Scale(scale);
+    
+    // Save a plot with both on the same axes
+    double maxy = h->GetMaximum()>href->GetMaximum()?h->GetMaximum()*1.1:href->GetMaximum()*1.1;
+    h->GetYaxis()->SetRangeUser(0,maxy);
+    h->Draw("E");
+    href->Draw("E SAME");
+    h->Draw("E SAME");
+    
+    // Add a legend
+    TLegend* legend = new TLegend(0.75,0.8,0.9,0.9);
+    legend->AddEntry(h, "Sample", "lep");
+    legend->Draw();
+    legend->AddEntry(href,"Reference", "lep");
+    legend->Draw();
+    
+    c->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
+    
+    // Now make a ratio plot
+    TCanvas *c_ratio = new TCanvas (("ratio_"+branchName).c_str(),("ratio_"+branchName).c_str(),900,600);
+    TH1D *ratio_hist = (TH1D*)h->Clone(("ratio_"+branchName).c_str());
+    ratio_hist->Divide(href);
+    // Set a more sensible y axis
+    ratio_hist->GetYaxis()->SetRangeUser(ratio_hist->GetBinContent(ratio_hist->GetMinimumBin())*0.9,ratio_hist->GetBinContent(ratio_hist->GetMaximumBin())*1.1);
+    ratio_hist->SetLineColor(kBlack);
+    ratio_hist->GetYaxis()->SetTitle("Ratio to reference");
+    ratio_hist->Draw();
+    ratio_hist->Write("",TObject::kOverwrite);
+    
+    TLine *line=new TLine(c->GetUxmin(),1.0,c->GetUxmax(),1.0);
+    line->SetLineColor(kRed);
+    line->Draw();
+    c_ratio->SaveAs((plotdir+"/ratio_"+branchName+".png").c_str());
+    
+    delete href;
+    delete ratio_hist;
+    delete c_ratio;
+  }
   delete h;
   delete c;
 }
