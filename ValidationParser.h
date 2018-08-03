@@ -22,6 +22,7 @@
 #include "TVector3.h"
 #include "TDictionary.h"
 #include "TBranch.h"
+#include "TLegend.h"
 
 
 using namespace std;

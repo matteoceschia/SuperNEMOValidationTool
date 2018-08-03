@@ -2,6 +2,7 @@
 
 // Global variables
 bool hasConfig=true;
+bool hasValidReference = true;
 TTree *tree;
 TTree *reftree;
 map<string,string> configParams;
@@ -127,7 +128,7 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   }
   
   // Check for a reference file
-  bool hasValidReference = true;
+  
   TFile *refFile;
   
   refFile = new TFile(refFileName.c_str());
@@ -260,6 +261,16 @@ void Plot1DHistogram(string branchName)
   int lowLimit=0;
   int highLimit=notSetVal;
   string title="";
+  bool hasReferenceBranch=hasValidReference;
+  
+  // Check whether the reference file contains this branch
+  if (hasValidReference)
+  {
+    hasReferenceBranch=reftree->GetBranchStatus(branchName.c_str());
+    if (!hasReferenceBranch) cout<<"WARNING: branch "<<branchName<<" not found in reference file. No comparison plots will be made for this branch"<<endl;
+  }
+  
+  // Read the config information
   if (config.length()>0)
   {
     // title, nbins, low limit, high limit separated by commas
@@ -308,6 +319,7 @@ void Plot1DHistogram(string branchName)
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),900,600);
   TH1D *h;
   tree->Draw(branchName.c_str());
+  
   if (highLimit == notSetVal)
   {
     // Use the default limits
@@ -338,6 +350,7 @@ void Plot1DHistogram(string branchName)
     }
   }
   h = new TH1D(("plt_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
+  h->Sumw2();
   h->GetYaxis()->SetTitle("Events");
   h->GetXaxis()->SetTitle(title.c_str());
   h->SetFillColor(kPink-6);
@@ -345,6 +358,33 @@ void Plot1DHistogram(string branchName)
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  
+  // Make the reference plot with the same binning
+  TH1D *href = new TH1D(("ref_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
+  href->Sumw2();
+  href->SetLineColor(kRed);
+  reftree->Draw((branchName + ">> ref_"+branchName).c_str());
+  
+  // Normalise reference number of events to data
+  Double_t scale = (double)tree->GetEntries()/(double)reftree->GetEntries();
+  href->Scale(scale);
+
+  double maxy = h->GetMaximum()>href->GetMaximum()?h->GetMaximum()*1.1:href->GetMaximum()*1.1;
+  h->GetYaxis()->SetRangeUser(0,maxy);
+  h->Draw("E");
+  href->Draw("E SAME");
+  h->Draw("E SAME");
+  
+  // Add a legend
+  TLegend* legend = new TLegend(0.75,0.8,0.9,0.9);
+  legend->AddEntry(h, "Sample", "lep");
+  legend->Draw();
+  legend->AddEntry(href,"Reference", "lep");
+  legend->Draw();
+  
+  c->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
+
+  
   delete h;
   delete c;
 }
