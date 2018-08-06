@@ -23,11 +23,16 @@
 #include "TDictionary.h"
 #include "TBranch.h"
 #include "TLegend.h"
+#include "TPaveText.h"
+#include "TLatex.h"
 
 
 using namespace std;
 
 string treeName="Validation";
+int REF_FILL_COLOR=kRed-10;
+int REF_LINE_COLOR=kRed;
+int REF_FILL_STYLE=1001;
 
 
 int main(int argc, char **argv);

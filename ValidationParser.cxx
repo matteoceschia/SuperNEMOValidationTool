@@ -363,7 +363,6 @@ void Plot1DHistogram(string branchName)
     // Make the reference plot with the same binning
     TH1D *href = new TH1D(("ref_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
     href->Sumw2();
-    href->SetLineColor(kRed);
     reftree->Draw((branchName + ">> ref_"+branchName).c_str());
     
     // Normalise reference number of events to data
@@ -373,18 +372,48 @@ void Plot1DHistogram(string branchName)
     // Save a plot with both on the same axes
     double maxy = h->GetMaximum()>href->GetMaximum()?h->GetMaximum()*1.1:href->GetMaximum()*1.1;
     h->GetYaxis()->SetRangeUser(0,maxy);
+
+    // Draw the sample to get the right axis
+    h->SetLineColor(kBlack);
+    h->SetMarkerStyle(20);
+    h->SetMarkerSize(.5);
+    h->SetMarkerColor(kBlack);
+    h->SetLineWidth(1);
+    h->SetLineStyle(1);
     h->Draw("E");
-    href->Draw("E SAME");
-    h->Draw("E SAME");
     
+    // Draw the error bars on the reference
+    href->SetFillColor(REF_FILL_COLOR);
+    href->SetFillStyle(REF_FILL_STYLE);
+    href->SetLineColor(REF_LINE_COLOR);
+    href->SetMarkerStyle(0);
+    href->DrawCopy("E2 SAME");
+    // Then the reference central value
+    href->SetFillColor(0);
+    href->DrawCopy("HIST SAME");
+    // Finally redraw the sample so it is on top
+    h->DrawCopy("E1 X0 SAME");
+
+
     // Add a legend
     TLegend* legend = new TLegend(0.75,0.8,0.9,0.9);
+    href->SetFillColor(REF_FILL_COLOR); // change it back so it is included in the legend
     legend->AddEntry(h, "Sample", "lep");
-    legend->Draw();
-    legend->AddEntry(href,"Reference", "lep");
+    legend->AddEntry(href,"Reference", "fl");
     legend->Draw();
     
     c->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
+    
+    // Calculate some stats
+    // Kolmogorov-Smirnov goodness of fit
+    Double_t ks = h->KolmogorovTest(href);
+//    Double_t chisqNDF = h->Chi2Test(href, "NORM, UU, P, CHI2/NDF");
+    Double_t chisq;
+    Int_t ndf;
+    Int_t iGoodCheck=0;
+    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    cout<<"Kolmogorov: "<<ks<<endl;
+    cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
     // Now make a ratio plot
     TCanvas *c_ratio = new TCanvas (("ratio_"+branchName).c_str(),("ratio_"+branchName).c_str(),900,600);
@@ -395,7 +424,10 @@ void Plot1DHistogram(string branchName)
     ratio_hist->SetLineColor(kBlack);
     ratio_hist->GetYaxis()->SetTitle("Ratio to reference");
     ratio_hist->Draw();
-    ratio_hist->Write("",TObject::kOverwrite);
+
+    WriteLabel(0.6,0.8, Form("K-S score (binned): %.2f",ks),0.04);
+    WriteLabel(0.6,0.72, Form("#chi^{2}/NDF: %.1f/%d = %.1f",chisq,ndf,chisq/(double)ndf),0.04);
+    WriteLabel(0.6,0.64, Form("(p-value %.2f)",p_value),0.04);
     
     TLine *line=new TLine(c->GetUxmin(),1.0,c->GetUxmax(),1.0);
     line->SetLineColor(kRed);
@@ -762,16 +794,26 @@ void PlotTrackerMap(string branchName)
   delete c;
 
 }
-
 // Just a quick routine to write text at a (x,y) coordinate
 void WriteLabel(double x, double y, string text, double size)
 {
-  TText *txt = new TText(x,y,text.c_str());
+  TLatex *txt=new TLatex();
   txt->SetTextSize(size);
   txt->SetNDC();
-  txt->Draw();
+  txt->DrawLatex(x,y,text.c_str());
 
+  //txt->DrawLatex();
+  
 }
+//// Just a quick routine to write text at a (x,y) coordinate
+//void WriteLabel(double x, double y, string text, double size)
+//{
+//  TText *txt = new TText(x,y,text.c_str());
+//  txt->SetTextSize(size);
+//  txt->SetNDC();
+//  txt->Draw();
+//
+//}
 /**
  *  Return the part of the string that is before the first comma (trimmed of white space)
  *  Modify the input string to be whatever is AFTER the first comma
