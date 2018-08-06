@@ -360,6 +360,16 @@ void Plot1DHistogram(string branchName)
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   if (hasReferenceBranch)
   {
+    TCanvas  *comp_canv= new TCanvas(("compare_"+branchName).c_str(),("compare_"+branchName).c_str(),900,900);
+    TPad *p_comp = new TPad("p_comp",
+                            "",0.0,0.4,1,1,0);
+    
+    TPad *p_ratio = new TPad("p_ratio",
+                            "",0.0,0.0,1,0.4,0);
+    p_comp->Draw();
+    p_ratio->Draw();
+    
+    p_comp->cd();
     // Make the reference plot with the same binning
     TH1D *href = new TH1D(("ref_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
     href->Sumw2();
@@ -402,12 +412,11 @@ void Plot1DHistogram(string branchName)
     legend->AddEntry(href,"Reference", "fl");
     legend->Draw();
     
-    c->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
+    //c->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
     
     // Calculate some stats
     // Kolmogorov-Smirnov goodness of fit
     Double_t ks = h->KolmogorovTest(href);
-//    Double_t chisqNDF = h->Chi2Test(href, "NORM, UU, P, CHI2/NDF");
     Double_t chisq;
     Int_t ndf;
     Int_t iGoodCheck=0;
@@ -415,14 +424,20 @@ void Plot1DHistogram(string branchName)
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
+    p_ratio->cd();
+
     // Now make a ratio plot
-    TCanvas *c_ratio = new TCanvas (("ratio_"+branchName).c_str(),("ratio_"+branchName).c_str(),900,600);
+    //TCanvas *c_ratio = new TCanvas (("ratio_"+branchName).c_str(),("ratio_"+branchName).c_str(),900,600);
     TH1D *ratio_hist = (TH1D*)h->Clone(("ratio_"+branchName).c_str());
+    ratio_hist->SetTitle("");
+    ratio_hist->GetXaxis()->SetTitle("");
     ratio_hist->Divide(href);
     // Set a more sensible y axis
     ratio_hist->GetYaxis()->SetRangeUser(ratio_hist->GetBinContent(ratio_hist->GetMinimumBin())*0.9,ratio_hist->GetBinContent(ratio_hist->GetMaximumBin())*1.1);
     ratio_hist->SetLineColor(kBlack);
     ratio_hist->GetYaxis()->SetTitle("Ratio to reference");
+    ratio_hist->GetYaxis()->SetLabelSize(ratio_hist->GetYaxis()->GetLabelSize() * 1.5);
+    ratio_hist->GetYaxis()->SetTitleSize(ratio_hist->GetYaxis()->GetTitleSize() * 1.5);
     ratio_hist->Draw();
 
     WriteLabel(0.6,0.8, Form("K-S score (binned): %.2f",ks),0.04);
@@ -432,11 +447,14 @@ void Plot1DHistogram(string branchName)
     TLine *line=new TLine(c->GetUxmin(),1.0,c->GetUxmax(),1.0);
     line->SetLineColor(kRed);
     line->Draw();
-    c_ratio->SaveAs((plotdir+"/ratio_"+branchName+".png").c_str());
+    //c_ratio->SaveAs((plotdir+"/ratio_"+branchName+".png").c_str());
+    comp_canv->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
+    
     
     delete href;
     delete ratio_hist;
-    delete c_ratio;
+   // delete c_ratio;
+    delete comp_canv;
   }
   delete h;
   delete c;
