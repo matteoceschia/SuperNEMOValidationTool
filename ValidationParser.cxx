@@ -176,13 +176,13 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
     // Open the output text file
     textOut.open((plotdir+"/ValidationResults.txt").c_str());
     textOut<<"Sample: "<<rootFileName<<" ("<<tree->GetEntries() <<" entries)"<<endl;
-    textOut<<"SHA sum (256): "<<FirstWordOf(exec(("shasum -a 256 "+rootFileName).c_str()))<<endl;
+    textOut<<"SHA-256 hash: "<<FirstWordOf(exec(("shasum -a 256 "+rootFileName).c_str()))<<endl;
     textOut<<"Compared with "<<refFileName<<" ("<<reftree->GetEntries() <<" entries)"<<endl;
-    textOut<<"SHA sum (256): "<<FirstWordOf(exec(("shasum -a 256 "+refFileName).c_str()))<<endl;
+    textOut<<"SHA-256 hash: "<<FirstWordOf(exec(("shasum -a 256 "+refFileName).c_str()))<<endl;
     textOut<<endl;
     
   }
-  return;//////////
+
   // Get a list of all the branches in the main tree
   TObjArray* branches = tree->GetListOfBranches();
   TIter next(branches);
