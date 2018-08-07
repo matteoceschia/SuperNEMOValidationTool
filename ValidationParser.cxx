@@ -427,8 +427,6 @@ void Plot1DHistogram(string branchName)
     legend->AddEntry(href,"Reference", "fl");
     legend->Draw();
     
-    //c->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
-    
     // Calculate some stats
     // Kolmogorov-Smirnov goodness of fit
     Double_t ks = h->KolmogorovTest(href);
@@ -717,12 +715,21 @@ void PlotCaloMap(string branchName)
  */
 void PlotTrackerMap(string branchName)
 {
-  //cout<<endl; // THIS LINE STOPS IT CRASHING BUT WHY?!?!
   int maxlayers=9;
   int maxrows=113;
   
   string config="";
   config=configParams[branchName]; // get the config loaded from the file if there is one
+  
+  // Can we do a comparison to the reference for this plot?
+  bool hasReferenceBranch=hasValidReference;
+  
+  // Check whether the reference file contains this branch
+  if (hasValidReference)
+  {
+    hasReferenceBranch=reftree->GetBranchStatus(branchName.c_str());
+    if (!hasReferenceBranch) cout<<"WARNING: branch "<<branchName<<" not found in reference file. No comparison plots will be made for this branch"<<endl;
+  }
   
   string title="";
   // Load the title from the config file
@@ -746,6 +753,18 @@ void PlotTrackerMap(string branchName)
       return;
     }
     mapBranch=branchName.substr(pos+1);
+    
+    // Check whether the sample file and the reference file contain the map branch
+    if (!tree->GetBranchStatus(mapBranch.c_str()))
+    {
+      cout<<"WARNING: map branch "<<mapBranch<<" not found in sample file. No plots can be made for the branch "<<branchName<<endl;
+      return; // We can't do the plot at all
+    }
+    if (hasReferenceBranch) // so far it is alright... but does the reference have the map branch?
+    {
+      hasReferenceBranch=reftree->GetBranchStatus(mapBranch.c_str());
+      if (!hasReferenceBranch) cout<<"WARNING: map branch "<<mapBranch<<" not found in reference file. No comparison plots can be made for the branch "<<branchName<<endl;
+    }
     branchName=branchName.substr(0,pos);
     isAverage=true;
   }
@@ -773,6 +792,7 @@ void PlotTrackerMap(string branchName)
   
   std::vector<double> *toAverageTrk = 0;
   TTree *thisTree=tree->CopyTree("");
+  
 
   thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
 
@@ -781,8 +801,6 @@ void PlotTrackerMap(string branchName)
   {
     thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
   }
-  
-  //return;
 
   // Now we can fill the two plots
   // Loop through the tree
