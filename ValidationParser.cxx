@@ -7,6 +7,8 @@ TTree *tree;
 TTree *reftree;
 map<string,string> configParams;
 string plotdir;
+ofstream textOut;
+
 int MAINWALL_WIDTH = 20;
 int MAINWALL_HEIGHT = 13;
 int XWALL_DEPTH = 4;
@@ -169,6 +171,18 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   TFile *outputFile=new TFile((plotdir+"/ValidationHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
   
+  if (hasValidReference)
+  {
+    // Open the output text file
+    textOut.open((plotdir+"/ValidationResults.txt").c_str());
+    textOut<<"Sample: "<<rootFileName<<" ("<<tree->GetEntries() <<" entries)"<<endl;
+    textOut<<"SHA sum (256): "<<FirstWordOf(exec(("shasum -a 256 "+rootFileName).c_str()))<<endl;
+    textOut<<"Compared with "<<refFileName<<" ("<<reftree->GetEntries() <<" entries)"<<endl;
+    textOut<<"SHA sum (256): "<<FirstWordOf(exec(("shasum -a 256 "+refFileName).c_str()))<<endl;
+    textOut<<endl;
+    
+  }
+  return;//////////
   // Get a list of all the branches in the main tree
   TObjArray* branches = tree->GetListOfBranches();
   TIter next(branches);
@@ -182,6 +196,7 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   
   if (configFile.is_open()) configFile.close();
   outputFile->Close();
+  if (textOut.is_open())  textOut.close();
   return;
 }
 
@@ -424,10 +439,15 @@ void Plot1DHistogram(string branchName)
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
-    p_ratio->cd();
+    // Write to output file
+    textOut<<branchName<<":"<<endl;
+    textOut<<"KS score: "<<ks<<endl;
+    textOut<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+
 
     // Now make a ratio plot
     //TCanvas *c_ratio = new TCanvas (("ratio_"+branchName).c_str(),("ratio_"+branchName).c_str(),900,600);
+    p_ratio->cd();
     TH1D *ratio_hist = (TH1D*)h->Clone(("ratio_"+branchName).c_str());
     ratio_hist->SetTitle("");
     ratio_hist->GetXaxis()->SetTitle("");
@@ -450,7 +470,7 @@ void Plot1DHistogram(string branchName)
     //c_ratio->SaveAs((plotdir+"/ratio_"+branchName+".png").c_str());
     comp_canv->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
     
-    
+    textOut<<endl;
     delete href;
     delete ratio_hist;
    // delete c_ratio;
@@ -819,19 +839,8 @@ void WriteLabel(double x, double y, string text, double size)
   txt->SetTextSize(size);
   txt->SetNDC();
   txt->DrawLatex(x,y,text.c_str());
-
-  //txt->DrawLatex();
-  
 }
-//// Just a quick routine to write text at a (x,y) coordinate
-//void WriteLabel(double x, double y, string text, double size)
-//{
-//  TText *txt = new TText(x,y,text.c_str());
-//  txt->SetTextSize(size);
-//  txt->SetNDC();
-//  txt->Draw();
-//
-//}
+
 /**
  *  Return the part of the string that is before the first comma (trimmed of white space)
  *  Modify the input string to be whatever is AFTER the first comma
@@ -852,6 +861,24 @@ string GetBitBeforeComma(string& input)
     output=input.substr(0,pos);
     boost::trim(output);
     input=input.substr(pos+1);
+  }
+  return output;
+}
+
+/**
+ *  Return the part of the string that is before the first space
+ */
+string FirstWordOf(string input)
+{
+  string output;
+  int pos=input.find_first_of(' ');
+  if (pos <=0)
+  {
+    output=input;
+  }
+  else
+  {
+    output=input.substr(0,pos);
   }
   return output;
 }
@@ -1015,4 +1042,16 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   delete c;
   return;
+}
+
+std::string exec(const char* cmd) {
+  std::array<char, 128> buffer;
+  std::string result;
+  std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+  if (!pipe) throw std::runtime_error("popen() failed!");
+  while (!feof(pipe.get())) {
+    if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
+      result += buffer.data();
+  }
+  return result;
 }
