@@ -39,6 +39,9 @@ int REF_FILL_COLOR=kRed-10;
 int REF_LINE_COLOR=kRed;
 int REF_FILL_STYLE=1001;
 
+int MAX_TRACKER_LAYERS=9;
+int MAX_TRACKER_ROWS=113;
+
 
 int main(int argc, char **argv);
 void ParseRootFile(string rootFileName, string configFileName="", string refFileName="");
@@ -53,3 +56,4 @@ void WriteLabel(double x, double y, string text, double size=0.05);
 void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom);
 string exec(const char* cmd);
 string FirstWordOf(string input);
+TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, TTree *inputTree, bool isAverage, string mapBranch = "");

@@ -715,8 +715,8 @@ void PlotCaloMap(string branchName)
  */
 void PlotTrackerMap(string branchName)
 {
-  int maxlayers=9;
-  int maxrows=113;
+//  int maxlayers=9;
+//  int maxrows=113;
   
   string config="";
   config=configParams[branchName]; // get the config loaded from the file if there is one
@@ -775,61 +775,60 @@ void PlotTrackerMap(string branchName)
     title = BranchNameToEnglish(branchName);
   }
 
-
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
-  TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
-  h->Sumw2(); // Important to get errors right
-  TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
-  hAve->Sumw2(); // Important to get errors right
-  h->GetYaxis()->SetTitle("Row");
-  h->GetXaxis()->SetTitle("Layer");
-
-  // This decodes the encoded tracker map to extract the x and y positions
-
-  // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
-  std::vector<int> *trackerHits = 0;
-  
-  std::vector<double> *toAverageTrk = 0;
-  TTree *thisTree=tree->CopyTree("");
-  
-
-  thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
-
-
-  if (isAverage)
-  {
-    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
-  }
-
-  // Now we can fill the two plots
-  // Loop through the tree
-  
-  int nEntries = tree -> GetEntries();
-  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
-  {
-    thisTree->GetEntry(iEntry);
-    // Populate these with which histogram we will fill and what cell
-    int xValue=0;
-    int yValue=0;
-    if (trackerHits->size()>0)
-    {
-      for (int i=0;i<trackerHits->size();i++)
-      {
-        yValue=TMath::Abs(trackerHits->at(i)/100);
-        xValue=trackerHits->at(i)%100;
-        if (isAverage)
-          hAve->Fill(xValue,yValue,toAverageTrk->at(i));
-        h->Fill(xValue,yValue);
-      }
-    }
-  }
-
-  if (isAverage)
-  {
-    hAve->Divide(h);
-    h=hAve; // overwrite the temp plot with the one we actually want to save
-  }
+  TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, tree, isAverage, mapBranch);
+//  TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+//  h->Sumw2(); // Important to get errors right
+//  TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
+//  hAve->Sumw2(); // Important to get errors right
+//  h->GetYaxis()->SetTitle("Row");
+//  h->GetXaxis()->SetTitle("Layer");
+//
+//  // This decodes the encoded tracker map to extract the x and y positions
+//
+//  // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
+//  std::vector<int> *trackerHits = 0;
+//  std::vector<double> *toAverageTrk = 0;
+//  TTree *thisTree=tree->CopyTree("");
+//
+//
+//  thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
+//
+//
+//  if (isAverage)
+//  {
+//    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
+//  }
+//
+//  // Now we can fill the two plots
+//  // Loop through the tree
+//
+//  int nEntries = tree -> GetEntries();
+//  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
+//  {
+//    thisTree->GetEntry(iEntry);
+//    // Populate these with which histogram we will fill and what cell
+//    int xValue=0;
+//    int yValue=0;
+//    if (trackerHits->size()>0)
+//    {
+//      for (int i=0;i<trackerHits->size();i++)
+//      {
+//        yValue=TMath::Abs(trackerHits->at(i)/100);
+//        xValue=trackerHits->at(i)%100;
+//        if (isAverage)
+//          hAve->Fill(xValue,yValue,toAverageTrk->at(i));
+//        h->Fill(xValue,yValue);
+//      }
+//    }
+//  }
+//
+//  if (isAverage)
+//  {
+//    hAve->Divide(h);
+//    h=hAve; // overwrite the temp plot with the one we actually want to save
+//  }
   
   h->Draw("COLZ");
   
@@ -850,6 +849,63 @@ void PlotTrackerMap(string branchName)
   delete c;
 
 }
+
+TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, TTree *inputTree, bool isAverage, string mapBranch)
+{
+    TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+    h->Sumw2(); // Important to get errors right
+    TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+    hAve->Sumw2(); // Important to get errors right
+    h->GetYaxis()->SetTitle("Row");
+    h->GetXaxis()->SetTitle("Layer");
+  
+    // This decodes the encoded tracker map to extract the x and y positions
+  
+    // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
+    std::vector<int> *trackerHits = 0;
+    std::vector<double> *toAverageTrk = 0;
+    TTree *thisTree=tree->CopyTree("");
+  
+  
+    thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
+  
+  
+    if (isAverage)
+    {
+      thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
+    }
+  
+    // Now we can fill the two plots
+    // Loop through the tree
+  
+    int nEntries = tree -> GetEntries();
+    for( int iEntry = 0; iEntry < nEntries; iEntry++ )
+    {
+      thisTree->GetEntry(iEntry);
+      // Populate these with which histogram we will fill and what cell
+      int xValue=0;
+      int yValue=0;
+      if (trackerHits->size()>0)
+      {
+        for (int i=0;i<trackerHits->size();i++)
+        {
+          yValue=TMath::Abs(trackerHits->at(i)/100);
+          xValue=trackerHits->at(i)%100;
+          if (isAverage)
+            hAve->Fill(xValue,yValue,toAverageTrk->at(i));
+          h->Fill(xValue,yValue);
+        }
+      }
+    }
+  
+    if (isAverage)
+    {
+      hAve->Divide(h);
+      h=hAve; // overwrite the temp plot with the one we actually want to save
+    }
+  return h;
+}
+
 // Just a quick routine to write text at a (x,y) coordinate
 void WriteLabel(double x, double y, string text, double size)
 {
