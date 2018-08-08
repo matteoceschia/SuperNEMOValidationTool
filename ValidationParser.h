@@ -57,3 +57,4 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
 string exec(const char* cmd);
 string FirstWordOf(string input);
 TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, TTree *inputTree, bool isAverage, string mapBranch = "");
+TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef);

@@ -845,11 +845,30 @@ void PlotTrackerMap(string branchName)
   WriteLabel(.4,.15,"Mountain");
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  
+  // If there is a reference plot, make a pull plot
+  if (hasReferenceBranch)
+  {
+    TH2D *href=TrackerMapHistogram(fullBranchName,branchName, title, reftree, isAverage, mapBranch);
+    TH2D *hPull = PullPlot2D(h,href);
+    delete hPull;
+  }
+  
   delete h;
   delete c;
 
 }
+// Calculate the pull between two 2d histograms
+TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
+{
+  TH2D *hPull = (TH2D*)hSample->Clone();
+  // ########### code goes here
+  return hPull;
+}
 
+// Make the tracker map histogram (either counts or averages, depending on whether there is a map branch)
+// The formatting and decision-making about what goes into the histogram is done separately,
+// this just loops the tree and fills the histogram
 TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, TTree *inputTree, bool isAverage, string mapBranch)
 {
     TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
