@@ -779,7 +779,7 @@ void PlotTrackerMap(string branchName)
 
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
-  TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, tree, isAverage, mapBranch);
+  TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, mapBranch);
   if( h->GetSumw2N() == 0 )h->Sumw2();
   h->Draw("COLZ");
   AnnotateTrackerMap();
@@ -791,19 +791,20 @@ void PlotTrackerMap(string branchName)
   // If there is a reference plot, make a pull plot
   if (hasReferenceBranch)
   {
-    TH2D *href=TrackerMapHistogram(fullBranchName,branchName, title, reftree, isAverage, mapBranch);
+    TH2D *href=TrackerMapHistogram(fullBranchName,branchName, title, true, isAverage, mapBranch);
     if( href->GetSumw2N() == 0 )href->Sumw2();
-    cout<<"ref before scaling "<<href->GetBinContent(3,3)<< "+/-"<<href->GetBinError(3,3)<<endl;
+    
     double scale=(double)tree->GetEntries()/(double)reftree->GetEntries();
-    cout<<branchName<<" scale is "<<scale<<endl;
     if (!isAverage) href->Scale(scale); // Normalise it if it is a plot of counts. Don't normalise it if it is an average plot; the number of entries shouldn't matter
     
     href->Draw("COLZ");
+    
     c->SaveAs((plotdir+"/REF_"+branchName+".png").c_str());
 
     TH2D *hPull = PullPlot2D(h,href);
     gStyle->SetPalette(PULL_PALETTE);
-    hPull->Draw("COLZ");
+    hPull->GetZaxis()->SetRangeUser(-4,4);
+    hPull->Draw("COLZ0");
     AnnotateTrackerMap();
     hPull->Write("",TObject::kOverwrite);
     c->SaveAs((plotdir+"/pull_"+branchName+".png").c_str());
@@ -835,7 +836,6 @@ void AnnotateTrackerMap()
 // Calculate the pull between two 2d histograms
 TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
 {
-  cout<<hSample->GetName()<<endl<<"----------"<<endl<<endl;
   
   if( hSample->GetSumw2N() == 0 )  hSample->Sumw2();
   if( hRef->GetSumw2N() == 0 )hRef->Sumw2();
@@ -846,32 +846,36 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
   {
       for (int y=0;y<=hSample->GetNbinsY();y++)
       {
+        // Initialize it just in case
         hPull->SetBinContent(x,y,0);
-        hPull->SetBinError(x,y,0);
+        hPull->SetBinError(x,y,0); // This is being lazy, I could probably calculate the error on the pull if I were a better statistician. But do we need it?
 
         // Pull is sample - ref / total uncertainty
         double pull=( hSample->GetBinContent(x,y) - hRef->GetBinContent(x,y)) /
           TMath::Sqrt( pow(hSample->GetBinError(x,y),2) + pow(hRef->GetBinError(x,y),2) );
-       ///// cout<<x<<":"<<y<<" - "<<pull<<endl;
         hPull->SetBinContent(x,y,pull);
 
       }
   }
-  
-  cout<<"sample  "<<hSample->GetBinContent(3,3)<< "+/-"<<hSample->GetBinError(3,3)<<endl;
-  cout<<"ref  "<<hRef->GetBinContent(3,3)<< "+/-"<<hRef->GetBinError(3,3)<<endl;
-  cout<<"pull "<<hPull->GetBinContent(3,3)<<endl;
+
   return hPull;
 }
 
 // Make the tracker map histogram (either counts or averages, depending on whether there is a map branch)
 // The formatting and decision-making about what goes into the histogram is done separately,
 // this just loops the tree and fills the histogram
-TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, TTree *inputTree, bool isAverage, string mapBranch)
+TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch)
 {
-    TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
-    if( h->GetSumw2N() == 0 )h->Sumw2(); // Important to get errors right
-    TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+  TTree *inputTree = (isRef?reftree:tree);
+
+  string tmpName="plt_"+branchName;
+  if (isRef) tmpName = "ref_"+tmpName;
+    TH2D *h = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+  if( h->GetSumw2N() == 0 )h->Sumw2(); // Important to get errors right
+  
+    tmpName="ave_"+branchName;
+    if (isRef) tmpName = "ref_"+tmpName;
+    TH2D *hAve = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
     if( hAve->GetSumw2N() == 0 )hAve->Sumw2(); // Important to get errors right
     h->GetYaxis()->SetTitle("Row");
     h->GetXaxis()->SetTitle("Layer");
@@ -905,13 +909,20 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
         {
           yValue=TMath::Abs(trackerHits->at(i)/100);
           xValue=trackerHits->at(i)%100;
-          if (isAverage)
+          if (isAverage && !isnan(toAverageTrk->at(i)))
+          {
             hAve->Fill(xValue,yValue,toAverageTrk->at(i));
-          h->Fill(xValue,yValue);
+            h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do
+          }
+          if (!isAverage)
+          {
+            h->Fill(xValue,yValue); // We will take the lot!
+          }
+          
         }
       }
     }
-  
+
     if (isAverage)
     {
       hAve->Divide(h);
