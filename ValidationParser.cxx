@@ -23,6 +23,7 @@ int VETO_WIDTH = 16;
 int main(int argc, char **argv)
 {
   gStyle->SetOptStat(0);
+  gStyle->SetPalette(PALETTE);
   if (argc < 2)
   {
     //cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
@@ -221,7 +222,7 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-      Plot1DHistogram(branchName);
+      ///////////////Plot1DHistogram(branchName);
       break;
     }
     case 't':
@@ -231,12 +232,13 @@ bool PlotVariable(string branchName)
     }
     case 'c':
     {
-      PlotCaloMap(branchName);
+      ///////////////PlotCaloMap(branchName);
       break;
     }
     default:
     {
-      //cout<< "Unknown variable type "<<branchName<<": treat as histogram"<<endl;
+      cout<< "Unknown variable type "<<branchName<<": treat as histogram"<<endl;
+      break;
     }
   }
 
@@ -365,7 +367,7 @@ void Plot1DHistogram(string branchName)
     }
   }
   h = new TH1D(("plt_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
-  h->Sumw2();
+  if( h->GetSumw2N() == 0 )h->Sumw2();
   h->GetYaxis()->SetTitle("Events");
   h->GetXaxis()->SetTitle(title.c_str());
   h->SetFillColor(kPink-6);
@@ -387,7 +389,7 @@ void Plot1DHistogram(string branchName)
     p_comp->cd();
     // Make the reference plot with the same binning
     TH1D *href = new TH1D(("ref_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
-    href->Sumw2();
+    if( href->GetSumw2N() == 0 )href->Sumw2();
     reftree->Draw((branchName + ">> ref_"+branchName).c_str());
     
     // Normalise reference number of events to data
@@ -778,71 +780,11 @@ void PlotTrackerMap(string branchName)
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
   TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, tree, isAverage, mapBranch);
-//  TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
-//  h->Sumw2(); // Important to get errors right
-//  TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
-//  hAve->Sumw2(); // Important to get errors right
-//  h->GetYaxis()->SetTitle("Row");
-//  h->GetXaxis()->SetTitle("Layer");
-//
-//  // This decodes the encoded tracker map to extract the x and y positions
-//
-//  // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
-//  std::vector<int> *trackerHits = 0;
-//  std::vector<double> *toAverageTrk = 0;
-//  TTree *thisTree=tree->CopyTree("");
-//
-//
-//  thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
-//
-//
-//  if (isAverage)
-//  {
-//    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
-//  }
-//
-//  // Now we can fill the two plots
-//  // Loop through the tree
-//
-//  int nEntries = tree -> GetEntries();
-//  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
-//  {
-//    thisTree->GetEntry(iEntry);
-//    // Populate these with which histogram we will fill and what cell
-//    int xValue=0;
-//    int yValue=0;
-//    if (trackerHits->size()>0)
-//    {
-//      for (int i=0;i<trackerHits->size();i++)
-//      {
-//        yValue=TMath::Abs(trackerHits->at(i)/100);
-//        xValue=trackerHits->at(i)%100;
-//        if (isAverage)
-//          hAve->Fill(xValue,yValue,toAverageTrk->at(i));
-//        h->Fill(xValue,yValue);
-//      }
-//    }
-//  }
-//
-//  if (isAverage)
-//  {
-//    hAve->Divide(h);
-//    h=hAve; // overwrite the temp plot with the one we actually want to save
-//  }
-  
+  if( h->GetSumw2N() == 0 )h->Sumw2();
   h->Draw("COLZ");
+  AnnotateTrackerMap();
   
-  // Annotate to make it clear what the detector layout is
-  TLine *foil=new TLine(0,0,0,113);
-  foil->SetLineColor(kGray);
-  foil->SetLineWidth(5);
-  foil->Draw("SAME");
-  
-  // Decorate the print
-  WriteLabel(.2,.5,"Italy");
-  WriteLabel(.7,.5,"France");
-  WriteLabel(0.4,.8,"Tunnel");
-  WriteLabel(.4,.15,"Mountain");
+  // Save to a ROOT file and to a PNG
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   
@@ -850,7 +792,22 @@ void PlotTrackerMap(string branchName)
   if (hasReferenceBranch)
   {
     TH2D *href=TrackerMapHistogram(fullBranchName,branchName, title, reftree, isAverage, mapBranch);
+    if( href->GetSumw2N() == 0 )href->Sumw2();
+    cout<<"ref before scaling "<<href->GetBinContent(3,3)<< "+/-"<<href->GetBinError(3,3)<<endl;
+    double scale=(double)tree->GetEntries()/(double)reftree->GetEntries();
+    cout<<branchName<<" scale is "<<scale<<endl;
+    if (!isAverage) href->Scale(scale); // Normalise it if it is a plot of counts. Don't normalise it if it is an average plot; the number of entries shouldn't matter
+    
+    href->Draw("COLZ");
+    c->SaveAs((plotdir+"/REF_"+branchName+".png").c_str());
+
     TH2D *hPull = PullPlot2D(h,href);
+    gStyle->SetPalette(PULL_PALETTE);
+    hPull->Draw("COLZ");
+    AnnotateTrackerMap();
+    hPull->Write("",TObject::kOverwrite);
+    c->SaveAs((plotdir+"/pull_"+branchName+".png").c_str());
+    gStyle->SetPalette(PALETTE);
     delete hPull;
   }
   
@@ -858,11 +815,52 @@ void PlotTrackerMap(string branchName)
   delete c;
 
 }
+
+// Draw the foil and label the French/Italian sides and Tunnel/Mountain ends
+void AnnotateTrackerMap()
+{
+    // Annotate to make it clear what the detector layout is
+    TLine *foil=new TLine(0,0,0,113);
+    foil->SetLineColor(kGray);
+    foil->SetLineWidth(5);
+    foil->Draw("SAME");
+  
+    // Decorate the print
+    WriteLabel(.2,.5,"Italy");
+    WriteLabel(.7,.5,"France");
+    WriteLabel(0.4,.8,"Tunnel");
+    WriteLabel(.4,.15,"Mountain");
+
+}
 // Calculate the pull between two 2d histograms
 TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
 {
+  cout<<hSample->GetName()<<endl<<"----------"<<endl<<endl;
+  
+  if( hSample->GetSumw2N() == 0 )  hSample->Sumw2();
+  if( hRef->GetSumw2N() == 0 )hRef->Sumw2();
   TH2D *hPull = (TH2D*)hSample->Clone();
-  // ########### code goes here
+  hPull->SetName(Form("pull_%s",hPull->GetName()));
+  hPull->ClearUnderflowAndOverflow (); // There shouldn't be anything in them anyway but let's be sure
+  for (int x=0;x<=hSample->GetNbinsX();x++)
+  {
+      for (int y=0;y<=hSample->GetNbinsY();y++)
+      {
+        hPull->SetBinContent(x,y,0);
+        hPull->SetBinError(x,y,0);
+
+        // Pull is sample - ref / total uncertainty
+        double pull=( hSample->GetBinContent(x,y) - hRef->GetBinContent(x,y)) /
+          TMath::Sqrt( pow(hSample->GetBinError(x,y),2) + pow(hRef->GetBinError(x,y),2) );
+       ///// cout<<x<<":"<<y<<" - "<<pull<<endl;
+        hPull->SetBinContent(x,y,pull);
+
+      }
+  }
+  
+  cout<<"sample  "<<hSample->GetBinContent(3,3)<< "+/-"<<hSample->GetBinError(3,3)<<endl;
+  cout<<"ref  "<<hRef->GetBinContent(3,3)<< "+/-"<<hRef->GetBinError(3,3)<<endl;
+  cout<<"pull "<<hPull->GetBinContent(3,3)<<endl;
   return hPull;
 }
 
@@ -872,9 +870,9 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
 TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, TTree *inputTree, bool isAverage, string mapBranch)
 {
     TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
-    h->Sumw2(); // Important to get errors right
+    if( h->GetSumw2N() == 0 )h->Sumw2(); // Important to get errors right
     TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
-    hAve->Sumw2(); // Important to get errors right
+    if( hAve->GetSumw2N() == 0 )hAve->Sumw2(); // Important to get errors right
     h->GetYaxis()->SetTitle("Row");
     h->GetXaxis()->SetTitle("Layer");
   
@@ -883,12 +881,9 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
     std::vector<int> *trackerHits = 0;
     std::vector<double> *toAverageTrk = 0;
-    TTree *thisTree=tree->CopyTree("");
-  
-  
+    TTree *thisTree=inputTree->CopyTree("");
     thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
-  
-  
+
     if (isAverage)
     {
       thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
@@ -897,7 +892,7 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     // Now we can fill the two plots
     // Loop through the tree
   
-    int nEntries = tree -> GetEntries();
+    int nEntries = thisTree -> GetEntries();
     for( int iEntry = 0; iEntry < nEntries; iEntry++ )
     {
       thisTree->GetEntry(iEntry);

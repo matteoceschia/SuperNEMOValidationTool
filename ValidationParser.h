@@ -42,6 +42,8 @@ int REF_FILL_STYLE=1001;
 int MAX_TRACKER_LAYERS=9;
 int MAX_TRACKER_ROWS=113;
 
+int PALETTE = kBird;
+int PULL_PALETTE=kRedBlue;
 
 int main(int argc, char **argv);
 void ParseRootFile(string rootFileName, string configFileName="", string refFileName="");
@@ -58,3 +60,4 @@ string exec(const char* cmd);
 string FirstWordOf(string input);
 TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, TTree *inputTree, bool isAverage, string mapBranch = "");
 TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef);
+void AnnotateTrackerMap();
