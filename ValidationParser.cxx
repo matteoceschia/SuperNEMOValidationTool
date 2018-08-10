@@ -548,21 +548,25 @@ void PlotCaloMap(string branchName)
   }
   
   // Compare to reference now that we have checked that we have one.
+  vector<TH2D*> refHists = MakeCaloPlotSet(fullBranchName, branchName, title, true, isAverage, mapBranch);
+  PrintCaloPlots("ref_"+branchName,title,refHists);
   
 }
 
 vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch)
 {
+  
     vector<TH2D*> hists;
     vector<TH2D*> ave_hists;
   
+    string prefix = (isRef)?"ref_":"plt_";
     // Make 6 2-dimensional histograms for the 6 walls
-    TH2D *hItaly = new TH2D(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-    TH2D *hFrance = new TH2D(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-    TH2D *hTunnel = new TH2D(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-    TH2D *hMountain = new TH2D(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-    TH2D *hTop = new TH2D(("plt_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-    TH2D *hBottom = new TH2D(("plt_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+    TH2D *hItaly = new TH2D((prefix+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+    TH2D *hFrance = new TH2D((prefix+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+    TH2D *hTunnel = new TH2D((prefix+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+    TH2D *hMountain = new TH2D((prefix+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+    TH2D *hTop = new TH2D((prefix+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+    TH2D *hBottom = new TH2D((prefix+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
   
     // This order MATTERS! Do not re-order them
     hists.push_back(hItaly);
@@ -573,12 +577,13 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     hists.push_back(hBottom);
   
     // Make histos for averages
-    TH2D *mItaly = new TH2D(("ave_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-    TH2D *mFrance = new TH2D(("ave_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-    TH2D *mTunnel = new TH2D(("ave_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-    TH2D *mMountain = new TH2D(("ave_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-    TH2D *mTop = new TH2D(("ave_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-    TH2D *mBottom = new TH2D(("ave_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+    prefix = (isRef)?"refave_":"ave_";
+    TH2D *mItaly = new TH2D((prefix+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+    TH2D *mFrance = new TH2D((prefix+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+    TH2D *mTunnel = new TH2D((prefix+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+    TH2D *mMountain = new TH2D((prefix+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+    TH2D *mTop = new TH2D((prefix+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+    TH2D *mBottom = new TH2D((prefix+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
   
     // This order MATTERS! Do not re-order them
     ave_hists.push_back(mItaly);
@@ -587,20 +592,28 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     ave_hists.push_back(mMountain);
     ave_hists.push_back(mTop);
     ave_hists.push_back(mBottom);
-    // Loop the event tree and decode the position
   
-    // Count the number of entries in the tree
-    int nEntries = tree -> GetEntries();
+  for (int i=0;i<hists.size();i++)
+  {
+    if( hists.at(i)->GetSumw2N() == 0 ) hists.at(i)->Sumw2();
+    if( ave_hists.at(i)->GetSumw2N() == 0 ) ave_hists.at(i)->Sumw2();
+  }
+  
+    // Loop the event tree and decode the position
+
     // Set up a vector of strings to receive the list of calorimeter IDs
     // There is one entry in the vector for each calorimeter hit in the event
     // And it will have a format something like [1302:0.1.0.10.*]
     std::vector<string> *caloHits = 0;
   
-    TTree *thisTree=tree->CopyTree("");
+    TTree *thisTree = (isRef)?reftree->CopyTree(""):tree->CopyTree("");
   
+    // Count the number of entries in the tree
+    int nEntries = thisTree -> GetEntries();
+    // Map the branches
     thisTree->SetBranchAddress(mapBranch.c_str(), &caloHits);
   
-    std::vector<double> *toAverage =0;
+    std::vector<double> *toAverage = 0;
     if (isAverage)
     {
       thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
