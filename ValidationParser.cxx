@@ -552,6 +552,30 @@ void PlotCaloMap(string branchName)
 
   PrintCaloPlots("ref_"+branchName,title,refHists);
   
+
+  // Calculate some stats
+  // Don't know how to make a Kolmogorov calculation for this set of 6, but we can do a chi-square and look at the pull...
+
+  Double_t chisq=0;
+  Int_t ndf=0;
+  Int_t iGoodCheck=0;
+  for (int i=0;i<hists.size();i++)
+  {
+    // Should be able to calculate the individual chi-squares and then sum them, as long as we remember to sum degrees of freedom too
+    Double_t thisChisq=0;
+    Int_t thisNdf=0;
+    Double_t p_value= hists.at(i)->Chi2TestX(refHists.at(i), thisChisq, thisNdf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    chisq += thisChisq;
+    ndf += thisNdf;
+  }
+  
+  Double_t prob = TMath::Prob(chisq, ndf); // Get it from the combined chi square
+  cout<<"P-value: "<<prob<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+  
+  // Write to output file
+  textOut<<branchName<<":"<<endl;
+  textOut<<"P-value: "<<prob<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+  
   
 }
 
@@ -749,9 +773,9 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     }
     return ave_hists;
   }
-  else{
+  else
+  {
     // Write the histograms to a file
-
     double scale=(double)tree->GetEntries()/thisTree->GetEntries(); // Scale to the main tree, if it is a reference tree - otherwise scale is just 1
     for (int i=0;i<hists.size();i++)
     {
