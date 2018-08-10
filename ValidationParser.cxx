@@ -223,12 +223,12 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-      Plot1DHistogram(branchName);
+      //Plot1DHistogram(branchName);
       break;
     }
     case 't':
     {
-      PlotTrackerMap(branchName);
+      //PlotTrackerMap(branchName);
       break;
     }
     case 'c':
@@ -531,187 +531,394 @@ void PlotCaloMap(string branchName)
     title = BranchNameToEnglish(branchName);
   }
   
-  // Make 6 2-dimensional histograms for the 6 walls
-  TH2D *hItaly = new TH2D(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2D *hFrance = new TH2D(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2D *hTunnel = new TH2D(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2D *hMountain = new TH2D(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2D *hTop = new TH2D(("plt_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2D *hBottom = new TH2D(("plt_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
-
-  // Make histos for avereages
-  TH2D *mItaly = new TH2D(("ave_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2D *mFrance = new TH2D(("ave_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2D *mTunnel = new TH2D(("ave_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2D *mMountain = new TH2D(("ave_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2D *mTop = new TH2D(("ave_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2D *mBottom = new TH2D(("ave_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
-
-  // Loop the event tree and decode the position
+  MakeCaloPlotSet(fullBranchName, branchName, title, false, isAverage, mapBranch);
+//  
+//  // Make 6 2-dimensional histograms for the 6 walls
+//  TH2D *hItaly = new TH2D(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+//  TH2D *hFrance = new TH2D(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+//  TH2D *hTunnel = new TH2D(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+//  TH2D *hMountain = new TH2D(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+//  TH2D *hTop = new TH2D(("plt_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+//  TH2D *hBottom = new TH2D(("plt_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+//
+//  // Make histos for avereages
+//  TH2D *mItaly = new TH2D(("ave_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+//  TH2D *mFrance = new TH2D(("ave_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+//  TH2D *mTunnel = new TH2D(("ave_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+//  TH2D *mMountain = new TH2D(("ave_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+//  TH2D *mTop = new TH2D(("ave_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+//  TH2D *mBottom = new TH2D(("ave_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+//
+//  // Loop the event tree and decode the position
+//  
+//  // Count the number of entries in the tree
+//  int nEntries = tree -> GetEntries();
+//  // Set up a vector of strings to receive the list of calorimeter IDs
+//  // There is one entry in the vector for each calorimeter hit in the event
+//  // And it will have a format something like [1302:0.1.0.10.*]
+//  std::vector<string> *caloHits = 0;
+//  
+//  TTree *thisTree=tree->CopyTree("");
+//
+//  thisTree->SetBranchAddress(mapBranch.c_str(), &caloHits);
+//  
+//  std::vector<double> *toAverage =0;
+//  if (isAverage)
+//  {
+//    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
+//  }
+//
+//  // Loop through the tree
+//  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
+//  {
+//    thisTree->GetEntry(iEntry);
+//    // Populate these with which histogram we will fill and what cell
+//    int xValue=0;
+//    int yValue=0;
+//    TH2D *whichHistogram=0;
+//    TH2D *whichAverage=0; // this is a tad messy
+//    // This should always work, but there is next to no catching of badly formatted
+//    // geom ID strings. Are they a possibility?
+//    if (caloHits->size()>0)
+//    {
+//      for (int i=0;i<caloHits->size();i++)
+//      {
+//        string thisHit=caloHits->at(i);
+//        //cout<<thisHit<<endl;
+//        if (thisHit.length()>=9)
+//        {
+//          bool isFrance=(thisHit.substr(8,1)=="1");
+//          //Now to decode it
+//          string wallType = thisHit.substr(1,4);
+//          
+//          if (wallType=="1302") // Main walls
+//          {
+//            
+//            if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+//            string useThisToParse = thisHit;
+//            
+//            // Hacky way to get the bit between the 2nd and 3rd "." characters for x
+//            int pos=useThisToParse.find('.');
+//            useThisToParse=useThisToParse.substr(pos+1);
+//            pos=useThisToParse.find('.');
+//            useThisToParse=useThisToParse.substr(pos+1);
+//            pos=useThisToParse.find('.');
+//            std::string::size_type sz;   // alias of size_t
+//            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+//
+//            // and the bit before the next . characters for y
+//            useThisToParse=useThisToParse.substr(pos+1);
+//            pos=useThisToParse.find_first_of('.');
+//            yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+//            
+//            // The numbering is from mountain to tunnel
+//            // But we draw the Italian side as we see it, with the mountain on the left
+//            // So let's flip it around
+//            if (!isFrance)xValue = -1 * (xValue + 1);
+//            //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<xValue<<":"<<yValue<<endl;
+//          }
+//          else if (wallType == "1232") //x walls
+//          {
+//            bool isTunnel=(thisHit.substr(10,1)=="1");
+//            if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
+//            // Hacky way to get the bit between the 3rd and 4th "." characters for x
+//            string useThisToParse = thisHit;
+//            int pos=0;
+//            for (int j=0;j<3;j++)
+//            {
+//              int pos=useThisToParse.find('.');
+//              useThisToParse=useThisToParse.substr(pos+1);
+//            }
+//            pos=useThisToParse.find('.');
+//            std::string::size_type sz;   // alias of size_t
+//            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+//            
+//            // and the bit before the next . characters for y
+//            useThisToParse=useThisToParse.substr(pos+1);
+//            pos=useThisToParse.find_first_of('.');
+//            yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+//            if (!isFrance)xValue = -1 * (xValue + 1); // Italy is on the left so reverse these to draw them
+//            
+//            if (isTunnel) // Switch it so France is on the left for the tunnel side
+//            {
+//              xValue = -1 * (xValue + 1);
+//            }
+//            
+//         //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
+//
+//          }
+//          else if (wallType == "1252") // veto walls
+//          {
+//            bool isTop=(thisHit.substr(10,1)=="1");
+//            if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
+//            string useThisToParse = thisHit;
+//            int pos=useThisToParse.find('.');
+//            for (int j=0;j<4;j++)
+//            {
+//              useThisToParse=useThisToParse.substr(pos+1);
+//              pos=useThisToParse.find('.');
+//            }
+//            
+//            std::string::size_type sz;   // alias of size_t
+//            yValue=((isFrance^isTop)?1:0); // We flip this so that French side is inwards on the print
+//            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+//            //cout<<iEntry<<" : " <<(isFrance?"Fr.":"It")<<" "<<(isTop?"top ":"bottom ")<<xValue<<endl;
+//          }
+//          else
+//          {
+//            cout<<"WARNING -- Calo hit found with unknown wall type "<<wallType<<endl;
+//            continue; // We can't plot it if we don't know where to plot it
+//          }
+//          
+//          // Now we know which histogram and the coordinates so write it
+//          whichHistogram->Fill(xValue,yValue);
+//          // This could be improved! Maybe a map of an enum to the sets of hists
+//          if (whichHistogram==hFrance) whichAverage =mFrance;
+//          if (whichHistogram==hItaly) whichAverage =mItaly;
+//          if (whichHistogram==hTunnel) whichAverage =mTunnel;
+//          if (whichHistogram==hMountain) whichAverage =mMountain;
+//          if (whichHistogram==hTop) whichAverage =mTop;
+//          if (whichHistogram==hBottom) whichAverage =mBottom;
+//          if (isAverage)
+//          {
+//            whichAverage->Fill(xValue,yValue,toAverage->at(i));
+//          }
+//        }// end parsable string
+//      } // end for each hit
+//    } // End if there are calo hits
+//  }
+//  if (isAverage)
+//  {
+//    mFrance->Divide(hFrance); mFrance->Write("",TObject::kOverwrite);
+//    mItaly->Divide(hItaly); mItaly->Write("",TObject::kOverwrite);
+//    mTunnel->Divide(hTunnel); mTunnel->Write("",TObject::kOverwrite);
+//    mMountain->Divide(hMountain); mMountain->Write("",TObject::kOverwrite);
+//    mTop->Divide(hTop); mTop->Write("",TObject::kOverwrite);
+//    mBottom->Divide(hBottom); mBottom->Write("",TObject::kOverwrite);
+//    
+//    // Print them all to a png file
+//    PrintCaloPlots(branchName,title,mItaly,mFrance,mTunnel,mMountain,mTop,mBottom);
+//  }
+//  else{
+//    // Write the histograms to a file
+//    hFrance->Write("",TObject::kOverwrite);
+//    hItaly->Write("",TObject::kOverwrite);
+//    hTunnel->Write("",TObject::kOverwrite);
+//    hMountain->Write("",TObject::kOverwrite);
+//    hTop->Write("",TObject::kOverwrite);
+//    hBottom->Write("",TObject::kOverwrite);
+//  
+//    // Print them all to a png file
+//    PrintCaloPlots(branchName,title,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
+//  }
   
-  // Count the number of entries in the tree
-  int nEntries = tree -> GetEntries();
-  // Set up a vector of strings to receive the list of calorimeter IDs
-  // There is one entry in the vector for each calorimeter hit in the event
-  // And it will have a format something like [1302:0.1.0.10.*]
-  std::vector<string> *caloHits = 0;
-  
-  TTree *thisTree=tree->CopyTree("");
-
-  thisTree->SetBranchAddress(mapBranch.c_str(), &caloHits);
-  
-  std::vector<double> *toAverage =0;
-  if (isAverage)
+  // Can we do a comparison to the reference for this plot?
+  if (!hasValidReference) return;
+  if (!reftree->GetBranchStatus(fullBranchName.c_str()))
   {
-    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
+    cout<<"WARNING: branch "<<fullBranchName<<" not found in reference file. No comparison plots will be made for this branch"<<endl;
+    return;
   }
-
-  // Loop through the tree
-  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
+  if (isAverage && !reftree->GetBranchStatus(mapBranch.c_str()))
   {
-    thisTree->GetEntry(iEntry);
-    // Populate these with which histogram we will fill and what cell
-    int xValue=0;
-    int yValue=0;
-    TH2D *whichHistogram=0;
-    TH2D *whichAverage=0; // this is a tad messy
-    // This should always work, but there is next to no catching of badly formatted
-    // geom ID strings. Are they a possibility?
-    if (caloHits->size()>0)
-    {
-      for (int i=0;i<caloHits->size();i++)
-      {
-        string thisHit=caloHits->at(i);
-        //cout<<thisHit<<endl;
-        if (thisHit.length()>=9)
-        {
-          bool isFrance=(thisHit.substr(8,1)=="1");
-          //Now to decode it
-          string wallType = thisHit.substr(1,4);
-          
-          if (wallType=="1302") // Main walls
-          {
-            
-            if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
-            string useThisToParse = thisHit;
-            
-            // Hacky way to get the bit between the 2nd and 3rd "." characters for x
-            int pos=useThisToParse.find('.');
-            useThisToParse=useThisToParse.substr(pos+1);
-            pos=useThisToParse.find('.');
-            useThisToParse=useThisToParse.substr(pos+1);
-            pos=useThisToParse.find('.');
-            std::string::size_type sz;   // alias of size_t
-            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+    cout<<"WARNING: map branch "<<mapBranch<<" not found in reference file. No comparison plots can be made for the branch "<<branchName<<endl;
+    return;
+  }
+  
+  // Compare to reference now that we have checked that we have one.
+  
+}
 
-            // and the bit before the next . characters for y
-            useThisToParse=useThisToParse.substr(pos+1);
-            pos=useThisToParse.find_first_of('.');
-            yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            
-            // The numbering is from mountain to tunnel
-            // But we draw the Italian side as we see it, with the mountain on the left
-            // So let's flip it around
-            if (!isFrance)xValue = -1 * (xValue + 1);
-            //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<xValue<<":"<<yValue<<endl;
-          }
-          else if (wallType == "1232") //x walls
+vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch)
+{
+    vector<TH2D*> histograms;
+    // Make 6 2-dimensional histograms for the 6 walls
+    TH2D *hItaly = new TH2D(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+    TH2D *hFrance = new TH2D(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+    TH2D *hTunnel = new TH2D(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+    TH2D *hMountain = new TH2D(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+    TH2D *hTop = new TH2D(("plt_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+    TH2D *hBottom = new TH2D(("plt_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+  
+    // Make histos for avereages
+    TH2D *mItaly = new TH2D(("ave_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+    TH2D *mFrance = new TH2D(("ave_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+    TH2D *mTunnel = new TH2D(("ave_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+    TH2D *mMountain = new TH2D(("ave_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+    TH2D *mTop = new TH2D(("ave_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+    TH2D *mBottom = new TH2D(("ave_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+  
+    // Loop the event tree and decode the position
+  
+    // Count the number of entries in the tree
+    int nEntries = tree -> GetEntries();
+    // Set up a vector of strings to receive the list of calorimeter IDs
+    // There is one entry in the vector for each calorimeter hit in the event
+    // And it will have a format something like [1302:0.1.0.10.*]
+    std::vector<string> *caloHits = 0;
+  
+    TTree *thisTree=tree->CopyTree("");
+  
+    thisTree->SetBranchAddress(mapBranch.c_str(), &caloHits);
+  
+    std::vector<double> *toAverage =0;
+    if (isAverage)
+    {
+      thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
+    }
+  
+    // Loop through the tree
+    for( int iEntry = 0; iEntry < nEntries; iEntry++ )
+    {
+      thisTree->GetEntry(iEntry);
+      // Populate these with which histogram we will fill and what cell
+      int xValue=0;
+      int yValue=0;
+      TH2D *whichHistogram=0;
+      TH2D *whichAverage=0; // this is a tad messy
+      // This should always work, but there is next to no catching of badly formatted
+      // geom ID strings. Are they a possibility?
+      if (caloHits->size()>0)
+      {
+        for (int i=0;i<caloHits->size();i++)
+        {
+          string thisHit=caloHits->at(i);
+          //cout<<thisHit<<endl;
+          if (thisHit.length()>=9)
           {
-            bool isTunnel=(thisHit.substr(10,1)=="1");
-            if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
-            // Hacky way to get the bit between the 3rd and 4th "." characters for x
-            string useThisToParse = thisHit;
-            int pos=0;
-            for (int j=0;j<3;j++)
+            bool isFrance=(thisHit.substr(8,1)=="1");
+            //Now to decode it
+            string wallType = thisHit.substr(1,4);
+  
+            if (wallType=="1302") // Main walls
             {
+  
+              if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+              string useThisToParse = thisHit;
+  
+              // Hacky way to get the bit between the 2nd and 3rd "." characters for x
               int pos=useThisToParse.find('.');
               useThisToParse=useThisToParse.substr(pos+1);
-            }
-            pos=useThisToParse.find('.');
-            std::string::size_type sz;   // alias of size_t
-            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            
-            // and the bit before the next . characters for y
-            useThisToParse=useThisToParse.substr(pos+1);
-            pos=useThisToParse.find_first_of('.');
-            yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            if (!isFrance)xValue = -1 * (xValue + 1); // Italy is on the left so reverse these to draw them
-            
-            if (isTunnel) // Switch it so France is on the left for the tunnel side
-            {
-              xValue = -1 * (xValue + 1);
-            }
-            
-         //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
-
-          }
-          else if (wallType == "1252") // veto walls
-          {
-            bool isTop=(thisHit.substr(10,1)=="1");
-            if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
-            string useThisToParse = thisHit;
-            int pos=useThisToParse.find('.');
-            for (int j=0;j<4;j++)
-            {
+              pos=useThisToParse.find('.');
               useThisToParse=useThisToParse.substr(pos+1);
               pos=useThisToParse.find('.');
-            }
-            
-            std::string::size_type sz;   // alias of size_t
-            yValue=((isFrance^isTop)?1:0); // We flip this so that French side is inwards on the print
-            xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            //cout<<iEntry<<" : " <<(isFrance?"Fr.":"It")<<" "<<(isTop?"top ":"bottom ")<<xValue<<endl;
-          }
-          else
-          {
-            cout<<"WARNING -- Calo hit found with unknown wall type "<<wallType<<endl;
-            continue; // We can't plot it if we don't know where to plot it
-          }
-          
-          // Now we know which histogram and the coordinates so write it
-          whichHistogram->Fill(xValue,yValue);
-          // This could be improved! Maybe a map of an enum to the sets of hists
-          if (whichHistogram==hFrance) whichAverage =mFrance;
-          if (whichHistogram==hItaly) whichAverage =mItaly;
-          if (whichHistogram==hTunnel) whichAverage =mTunnel;
-          if (whichHistogram==hMountain) whichAverage =mMountain;
-          if (whichHistogram==hTop) whichAverage =mTop;
-          if (whichHistogram==hBottom) whichAverage =mBottom;
-          if (isAverage)
-          {
-            whichAverage->Fill(xValue,yValue,toAverage->at(i));
-          }
-        }// end parsable string
-      } // end for each hit
-    } // End if there are calo hits
-  }
-  if (isAverage)
-  {
-    mFrance->Divide(hFrance); mFrance->Write("",TObject::kOverwrite);
-    mItaly->Divide(hItaly); mItaly->Write("",TObject::kOverwrite);
-    mTunnel->Divide(hTunnel); mTunnel->Write("",TObject::kOverwrite);
-    mMountain->Divide(hMountain); mMountain->Write("",TObject::kOverwrite);
-    mTop->Divide(hTop); mTop->Write("",TObject::kOverwrite);
-    mBottom->Divide(hBottom); mBottom->Write("",TObject::kOverwrite);
-    
-    // Print them all to a png file
-    PrintCaloPlots(branchName,title,mItaly,mFrance,mTunnel,mMountain,mTop,mBottom);
-  }
-  else{
-  // Write the histograms to a file
-  hFrance->Write("",TObject::kOverwrite);
-  hItaly->Write("",TObject::kOverwrite);
-  hTunnel->Write("",TObject::kOverwrite);
-  hMountain->Write("",TObject::kOverwrite);
-  hTop->Write("",TObject::kOverwrite);
-  hBottom->Write("",TObject::kOverwrite);
+              std::string::size_type sz;   // alias of size_t
+              xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
   
-  // Print them all to a png file
-  PrintCaloPlots(branchName,title,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
-
-  }
-
+              // and the bit before the next . characters for y
+              useThisToParse=useThisToParse.substr(pos+1);
+              pos=useThisToParse.find_first_of('.');
+              yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+  
+              // The numbering is from mountain to tunnel
+              // But we draw the Italian side as we see it, with the mountain on the left
+              // So let's flip it around
+              if (!isFrance)xValue = -1 * (xValue + 1);
+              //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<xValue<<":"<<yValue<<endl;
+            }
+            else if (wallType == "1232") //x walls
+            {
+              bool isTunnel=(thisHit.substr(10,1)=="1");
+              if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
+              // Hacky way to get the bit between the 3rd and 4th "." characters for x
+              string useThisToParse = thisHit;
+              int pos=0;
+              for (int j=0;j<3;j++)
+              {
+                int pos=useThisToParse.find('.');
+                useThisToParse=useThisToParse.substr(pos+1);
+              }
+              pos=useThisToParse.find('.');
+              std::string::size_type sz;   // alias of size_t
+              xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+  
+              // and the bit before the next . characters for y
+              useThisToParse=useThisToParse.substr(pos+1);
+              pos=useThisToParse.find_first_of('.');
+              yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+              if (!isFrance)xValue = -1 * (xValue + 1); // Italy is on the left so reverse these to draw them
+  
+              if (isTunnel) // Switch it so France is on the left for the tunnel side
+              {
+                xValue = -1 * (xValue + 1);
+              }
+  
+           //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
+  
+            }
+            else if (wallType == "1252") // veto walls
+            {
+              bool isTop=(thisHit.substr(10,1)=="1");
+              if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
+              string useThisToParse = thisHit;
+              int pos=useThisToParse.find('.');
+              for (int j=0;j<4;j++)
+              {
+                useThisToParse=useThisToParse.substr(pos+1);
+                pos=useThisToParse.find('.');
+              }
+  
+              std::string::size_type sz;   // alias of size_t
+              yValue=((isFrance^isTop)?1:0); // We flip this so that French side is inwards on the print
+              xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+              //cout<<iEntry<<" : " <<(isFrance?"Fr.":"It")<<" "<<(isTop?"top ":"bottom ")<<xValue<<endl;
+            }
+            else
+            {
+              cout<<"WARNING -- Calo hit found with unknown wall type "<<wallType<<endl;
+              continue; // We can't plot it if we don't know where to plot it
+            }
+  
+            // Now we know which histogram and the coordinates so write it
+            whichHistogram->Fill(xValue,yValue);
+            // This could be improved! Maybe a map of an enum to the sets of hists
+            if (whichHistogram==hFrance) whichAverage =mFrance;
+            if (whichHistogram==hItaly) whichAverage =mItaly;
+            if (whichHistogram==hTunnel) whichAverage =mTunnel;
+            if (whichHistogram==hMountain) whichAverage =mMountain;
+            if (whichHistogram==hTop) whichAverage =mTop;
+            if (whichHistogram==hBottom) whichAverage =mBottom;
+            if (isAverage)
+            {
+              whichAverage->Fill(xValue,yValue,toAverage->at(i));
+            }
+          }// end parsable string
+        } // end for each hit
+      } // End if there are calo hits
+    }
+    if (isAverage)
+    {
+      mFrance->Divide(hFrance); mFrance->Write("",TObject::kOverwrite);
+      mItaly->Divide(hItaly); mItaly->Write("",TObject::kOverwrite);
+      mTunnel->Divide(hTunnel); mTunnel->Write("",TObject::kOverwrite);
+      mMountain->Divide(hMountain); mMountain->Write("",TObject::kOverwrite);
+      mTop->Divide(hTop); mTop->Write("",TObject::kOverwrite);
+      mBottom->Divide(hBottom); mBottom->Write("",TObject::kOverwrite);
+  
+      // Print them all to a png file
+      PrintCaloPlots(branchName,title,mItaly,mFrance,mTunnel,mMountain,mTop,mBottom);
+    }
+    else{
+      // Write the histograms to a file
+      hFrance->Write("",TObject::kOverwrite);
+      hItaly->Write("",TObject::kOverwrite);
+      hTunnel->Write("",TObject::kOverwrite);
+      hMountain->Write("",TObject::kOverwrite);
+      hTop->Write("",TObject::kOverwrite);
+      hBottom->Write("",TObject::kOverwrite);
+    
+      // Print them all to a png file
+      PrintCaloPlots(branchName,title,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
+    }
+  
+  return histograms;
 }
+
+
+
+
+
+
 
 /**
  *  Plot a map of the tracker cells
