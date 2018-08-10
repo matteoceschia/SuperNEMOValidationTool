@@ -71,3 +71,4 @@ string FirstWordOf(string input);
 TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch = "");
 TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef);
 void AnnotateTrackerMap();
+double CheckTrackerPull(TH2D *hPull);
