@@ -35,15 +35,25 @@
 using namespace std;
 
 string treeName="Validation";
+
+// Colour palettes for 1-D histogram comparisons
 int REF_FILL_COLOR=kRed-10;
 int REF_LINE_COLOR=kRed;
 int REF_FILL_STYLE=1001;
 
+// Tracker geometry
 int MAX_TRACKER_LAYERS=9;
 int MAX_TRACKER_ROWS=113;
 
+// Palettes for general plots and for pull plots
+// (where we want different colours for positive and negative values)
 int PALETTE = kBird;
 int PULL_PALETTE=kRedBlue;
+
+// For 2-D comparisons - report if the magnitude of the pull
+// (difference between sample and reference) for a cell
+// is more than this many sigma
+double REPORT_PULLS_OVER=3.;
 
 int main(int argc, char **argv);
 void ParseRootFile(string rootFileName, string configFileName="", string refFileName="");

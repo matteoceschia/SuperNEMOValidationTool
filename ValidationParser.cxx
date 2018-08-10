@@ -797,10 +797,22 @@ void PlotTrackerMap(string branchName)
     double scale=(double)tree->GetEntries()/(double)reftree->GetEntries();
     if (!isAverage) href->Scale(scale); // Normalise it if it is a plot of counts. Don't normalise it if it is an average plot; the number of entries shouldn't matter
     
-    href->Draw("COLZ");
+    // href->Draw("COLZ");
     
-    c->SaveAs((plotdir+"/REF_"+branchName+".png").c_str());
-
+    // c->SaveAs((plotdir+"/REF_"+branchName+".png").c_str());
+    Double_t ks = h->KolmogorovTest(href);
+    Double_t chisq;
+    Int_t ndf;
+    Int_t iGoodCheck=0;
+    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    cout<<"Kolmogorov: "<<ks<<endl;
+    cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+    
+    // Write to output file
+    textOut<<branchName<<":"<<endl;
+    textOut<<"KS score: "<<ks<<endl;
+    textOut<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+    
     TH2D *hPull = PullPlot2D(h,href);
     gStyle->SetPalette(PULL_PALETTE);
     hPull->GetZaxis()->SetRangeUser(-4,4);
@@ -808,8 +820,10 @@ void PlotTrackerMap(string branchName)
     AnnotateTrackerMap();
     hPull->Write("",TObject::kOverwrite);
     c->SaveAs((plotdir+"/pull_"+branchName+".png").c_str());
+    
     gStyle->SetPalette(PALETTE);
     delete hPull;
+    textOut<<endl;
   }
   
   delete h;
@@ -842,6 +856,9 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
   TH2D *hPull = (TH2D*)hSample->Clone();
   hPull->SetName(Form("pull_%s",hPull->GetName()));
   hPull->ClearUnderflowAndOverflow (); // There shouldn't be anything in them anyway but let's be sure
+  bool problemPulls=false;
+  double totalPull=0;
+  int pullCells=0;
   for (int x=0;x<=hSample->GetNbinsX();x++)
   {
       for (int y=0;y<=hSample->GetNbinsY();y++)
@@ -854,10 +871,31 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
         double pull=( hSample->GetBinContent(x,y) - hRef->GetBinContent(x,y)) /
           TMath::Sqrt( pow(hSample->GetBinError(x,y),2) + pow(hRef->GetBinError(x,y),2) );
         hPull->SetBinContent(x,y,pull);
-
+        if (!isnan(pull))
+        {
+          totalPull+=pull;
+          pullCells++;
+        }
+        
+        // Report any cells where sample and reference are too different
+        if (TMath::Abs(pull) > REPORT_PULLS_OVER)
+        {
+          if (x > MAX_TRACKER_LAYERS)
+            textOut<<"Layer "<<x - MAX_TRACKER_LAYERS<<" (France), row "<<y<<": pull = "<<pull<<endl;
+          else textOut<<"Layer"<< MAX_TRACKER_LAYERS + 1 - x<<" (Italy), row "<<y<<": pull = "<<pull<<endl;
+          problemPulls=true;
+        }
       }
   }
-
+  if (problemPulls)
+  {
+    textOut<<"Layers are numbererd 1 to 9, with 1 nearest the foil. Rows count from mountain (0) to tunnel ("<<MAX_TRACKER_ROWS<<")."<<endl;
+  }
+  textOut<<"Overall pull:"<<totalPull<<" for "<<pullCells<<" cells with data. ";
+  cout<<"Overall pull:"<<totalPull<<" for "<<pullCells<<" cells with data. "<<endl;
+  if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
+  else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  
   return hPull;
 }
 
