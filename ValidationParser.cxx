@@ -549,7 +549,9 @@ void PlotCaloMap(string branchName)
   
   // Compare to reference now that we have checked that we have one.
   vector<TH2D*> refHists = MakeCaloPlotSet(fullBranchName, branchName, title, true, isAverage, mapBranch);
+
   PrintCaloPlots("ref_"+branchName,title,refHists);
+  
   
 }
 
@@ -635,7 +637,7 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
       for (int i=0;i<caloHits->size();i++)
       {
         string thisHit=caloHits->at(i);
-        //cout<<thisHit<<endl;
+        
         if (thisHit.length()>=9)
         {
           bool isFrance=(thisHit.substr(8,1)=="1");
@@ -732,7 +734,7 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           if (whichHistogram==hBottom) whichAverage =mBottom;
           if (isAverage)
           {
-            whichAverage->Fill(xValue,yValue,toAverage->at(i));
+            whichAverage->Fill(xValue,yValue,toAverage->at(i));  // !! What should we be doing with the uncertainty here?
           }
         }// end parsable string
       } // end for each hit
@@ -749,8 +751,13 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
   }
   else{
     // Write the histograms to a file
+
+    double scale=(double)tree->GetEntries()/thisTree->GetEntries(); // Scale to the main tree, if it is a reference tree - otherwise scale is just 1
     for (int i=0;i<hists.size();i++)
+    {
+      if (isRef) hists.at(i)->Scale(scale);
       hists.at(i)->Write("",TObject::kOverwrite);
+    }
     return hists;
   }
   
@@ -1007,14 +1014,14 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
           xValue=trackerHits->at(i)%100;
           if (isAverage && !isnan(toAverageTrk->at(i)))
           {
-            hAve->Fill(xValue,yValue,toAverageTrk->at(i));
+            hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // !! What should we be doing with the uncertainty here?
+
             h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do
           }
           if (!isAverage)
           {
             h->Fill(xValue,yValue); // We will take the lot!
           }
-          
         }
       }
     }
