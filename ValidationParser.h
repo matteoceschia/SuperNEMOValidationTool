@@ -45,13 +45,10 @@ int REF_FILL_STYLE=1001;
 int MAX_TRACKER_LAYERS=9;
 int MAX_TRACKER_ROWS=113;
 
-// List of calorimeter walls
-string WALLS[6] = {"Italy","France","Tunnel","Mountain","Top","Bottom"};
-
 // Palettes for general plots and for pull plots
 // (where we want different colours for positive and negative values)
 int PALETTE = kBird;
-int PULL_PALETTE=kRedBlue;
+int PULL_PALETTE=kThermometer;
 
 // For 2-D comparisons - report if the magnitude of the pull
 // (difference between sample and reference) for a cell

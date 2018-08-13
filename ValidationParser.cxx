@@ -1120,7 +1120,7 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     {
       thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
     }
-  
+
     // Now we can fill the two plots
     // Loop through the tree
   
