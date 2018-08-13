@@ -223,12 +223,12 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-      //Plot1DHistogram(branchName);
+      Plot1DHistogram(branchName);
       break;
     }
     case 't':
     {
-      //PlotTrackerMap(branchName);
+      PlotTrackerMap(branchName);
       break;
     }
     case 'c':
@@ -1073,7 +1073,7 @@ double CheckTrackerPull(TH2D *hPull)
       {
         if (x > MAX_TRACKER_LAYERS)
           textOut<<"Layer "<<x - MAX_TRACKER_LAYERS<<" (France), row "<<y<<": pull = "<<pull<<endl;
-        else textOut<<"Layer"<< MAX_TRACKER_LAYERS + 1 - x<<" (Italy), row "<<y<<": pull = "<<pull<<endl;
+        else textOut<<"Layer "<< MAX_TRACKER_LAYERS + 1 - x<<" (Italy), row "<<y<<": pull = "<<pull<<endl;
         problemPulls=true;
       }
     }
