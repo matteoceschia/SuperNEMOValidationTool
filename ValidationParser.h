@@ -48,7 +48,7 @@ int MAX_TRACKER_ROWS=113;
 // Palettes for general plots and for pull plots
 // (where we want different colours for positive and negative values)
 int PALETTE = kBird;
-int PULL_PALETTE=kRedBlue;
+int PULL_PALETTE=kThermometer;
 
 // For 2-D comparisons - report if the magnitude of the pull
 // (difference between sample and reference) for a cell
@@ -65,10 +65,14 @@ void PlotTrackerMap(string branchName);
 void PlotCaloMap(string branchName);
 string BranchNameToEnglish(string branchname);
 void WriteLabel(double x, double y, string text, double size=0.05);
-void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom);
+void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos);
+
 string exec(const char* cmd);
 string FirstWordOf(string input);
 TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch = "");
 TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef);
 void AnnotateTrackerMap();
 double CheckTrackerPull(TH2D *hPull);
+vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch = "");
+vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef);
+double CheckCaloPulls(vector<TH2D*> hPulls);

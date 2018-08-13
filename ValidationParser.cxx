@@ -24,9 +24,9 @@ int main(int argc, char **argv)
 {
   gStyle->SetOptStat(0);
   gStyle->SetPalette(PALETTE);
+  gErrorIgnoreLevel = kWarning;
   if (argc < 2)
   {
-    //cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
     cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
     return -1;
   }
@@ -447,7 +447,7 @@ void Plot1DHistogram(string branchName)
 
 
     // Now make a ratio plot
-    //TCanvas *c_ratio = new TCanvas (("ratio_"+branchName).c_str(),("ratio_"+branchName).c_str(),900,600);
+
     p_ratio->cd();
     TH1D *ratio_hist = (TH1D*)h->Clone(("ratio_"+branchName).c_str());
     ratio_hist->SetTitle("");
@@ -468,7 +468,7 @@ void Plot1DHistogram(string branchName)
     TLine *line=new TLine(c->GetUxmin(),1.0,c->GetUxmax(),1.0);
     line->SetLineColor(kRed);
     line->Draw();
-    //c_ratio->SaveAs((plotdir+"/ratio_"+branchName+".png").c_str());
+
     comp_canv->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
     
     textOut<<endl;
@@ -531,41 +531,220 @@ void PlotCaloMap(string branchName)
     title = BranchNameToEnglish(branchName);
   }
   
+  vector<TH2D*> hists = MakeCaloPlotSet(fullBranchName, branchName, title, false, isAverage, mapBranch);
+  PrintCaloPlots(branchName,title,hists);
+  
+  // Can we do a comparison to the reference for this plot?
+  if (!hasValidReference) return;
+  if (!reftree->GetBranchStatus(fullBranchName.c_str()))
+  {
+    cout<<"WARNING: branch "<<fullBranchName<<" not found in reference file. No comparison plots will be made for this branch"<<endl;
+    return;
+  }
+  if (isAverage && !reftree->GetBranchStatus(mapBranch.c_str()))
+  {
+    cout<<"WARNING: map branch "<<mapBranch<<" not found in reference file. No comparison plots can be made for the branch "<<branchName<<endl;
+    return;
+  }
+  
+  // Compare to reference now that we have checked that we have one.
+  vector<TH2D*> refHists = MakeCaloPlotSet(fullBranchName, branchName, title, true, isAverage, mapBranch);
+
+  PrintCaloPlots("ref_"+branchName,title,refHists);
+  
+
+  // Calculate some stats
+  // Don't know how to make a Kolmogorov calculation for this set of 6, but we can do a chi-square and look at the pull...
+
+  Double_t chisq=0;
+  Int_t ndf=0;
+  Int_t iGoodCheck=0;
+  for (int i=0;i<hists.size();i++)
+  {
+    // Should be able to calculate the individual chi-squares and then sum them, as long as we remember to sum degrees of freedom too
+    Double_t thisChisq=0;
+    Int_t thisNdf=0;
+    hists.at(i)->Chi2TestX(refHists.at(i), thisChisq, thisNdf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    chisq += thisChisq;
+    ndf += thisNdf;
+  }
+  
+  Double_t prob = TMath::Prob(chisq, ndf); // Get it from the combined chi square
+  cout<<"P-value: "<<prob<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+  
+  // Write to output file
+  textOut<<branchName<<":"<<endl;
+  textOut<<"P-value: "<<prob<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+  
+  // Pull plots
+  vector<TH2D*> pullHists = MakeCaloPullPlots(hists,refHists);
+  gStyle->SetPalette(PULL_PALETTE);
+  
+  PrintCaloPlots("pull_"+branchName,"Pull: "+title,pullHists);
+  CheckCaloPulls(pullHists);
+  gStyle->SetPalette(PALETTE);
+  
+  textOut<<endl;
+  cout<<endl;
+}
+
+// Go through a set of calorimeter pull histograms and report overall pull and
+// any problems
+double CheckCaloPulls(vector<TH2D*> hPulls)
+{
+  //bool problemPulls=false;
+  double totalPull=0;
+  int pullCells=0;
+  for (int i=0;i<hPulls.size();i++)
+  {
+    TH2D *hPull = hPulls.at(i);
+    for (int x=1;x<=hPull->GetNbinsX();x++)
+    {
+      for (int y=1;y<=hPull->GetNbinsY();y++)
+      {
+        // Pull is sample - ref / total uncertainty
+        double pull=hPull->GetBinContent(x,y) ;
+        if (!isnan(pull))
+        {
+          totalPull+=pull;
+          pullCells++;
+        }
+        
+        // Report any cells where sample and reference are too different
+        if (TMath::Abs(pull) > REPORT_PULLS_OVER ||  isnan(pull) )
+        {
+          string reportString;
+          // Unfortunately the numbering scheme maps differently to the bin numbers for each wall
+          string intExt="external"; // Translate x coordinate to position for X walls and vetoes
+          string side="French";
+          switch (i)
+          {
+            case 0: // Italy
+              reportString=Form("Italian main wall: module (%d,%d)",20-x,y-1);
+              break;
+            case 1: // France
+              reportString=Form("French main wall: module (%d,%d)",x-1,y-1);
+              break;
+            case 2: // Tunnel
+              if (x>2) side = "Italian"; // Translate x bin to location
+              if (x==2 || x ==3) intExt="internal";
+              reportString=Form("Tunnel X-wall: module %d (",y-1)+side+" side "+intExt+")";
+              break;
+            case 3: // Mountain
+              if (x<3) side = "Italian"; // Translate x bin to location
+              if (x==2 || x ==3) intExt="internal";
+              reportString=Form("Mountain X-wall: module %d (",y-1)+side+" side "+intExt+")";
+              break;
+            case 4: // Top
+              if (y==2) side = "Italian"; // Translate y bin to location
+              reportString=Form("Top veto wall: module %d (",x-1)+side+" side)";
+              break;
+            case 5: // Bottom
+              if (y==1) side = "Italian"; // Translate y bin to location
+              reportString=Form("Bottom veto wall: module %d (",x-1)+side+" side)";
+              break;
+            default:
+              break;
+              reportString=Form("ERROR: pull found for unknown calorimeter wall %d: this is a bug!",i);
+          }
+          if (isnan(pull)) reportString += " no data: unable to calculate pull";
+          else reportString += Form(" pull = %.2f",pull);
+          cout<<reportString<<endl;
+          textOut<<reportString<<endl;
+        }
+        
+      }
+    }
+  }
+
+  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data. ";
+  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data."<<endl;
+  if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
+  else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  return totalPull;
+}
+
+vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef)
+{
+  vector <TH2D*> vPull;
+  if (vSample.size() != vRef.size())
+  { // This should never happen if it only gets called from here
+    cout<<"ERROR: number of sample and reference histograms does not match for "<<vSample.at(0)->GetName()<<endl;
+    return vPull;
+  }
+  for (int i=0;i<vSample.size();i++)
+  {
+    vPull.push_back(PullPlot2D(vSample.at(i), vRef.at(i)));
+  }
+  return vPull;
+}
+
+vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch)
+{
+  
+  vector<TH2D*> hists;
+  vector<TH2D*> ave_hists;
+  
+  string prefix = (isRef)?"ref_":"plt_";
   // Make 6 2-dimensional histograms for the 6 walls
-  TH2D *hItaly = new TH2D(("plt_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2D *hFrance = new TH2D(("plt_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2D *hTunnel = new TH2D(("plt_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2D *hMountain = new TH2D(("plt_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2D *hTop = new TH2D(("plt_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2D *hBottom = new TH2D(("plt_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
-
-  // Make histos for avereages
-  TH2D *mItaly = new TH2D(("ave_"+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2D *mFrance = new TH2D(("ave_"+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2D *mTunnel = new TH2D(("ave_"+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2D *mMountain = new TH2D(("ave_"+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2D *mTop = new TH2D(("ave_"+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2D *mBottom = new TH2D(("ave_"+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
-
+  TH2D *hItaly = new TH2D((prefix+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+  TH2D *hFrance = new TH2D((prefix+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+  TH2D *hTunnel = new TH2D((prefix+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+  TH2D *hMountain = new TH2D((prefix+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+  TH2D *hTop = new TH2D((prefix+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+  TH2D *hBottom = new TH2D((prefix+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+  
+  // This order MATTERS! Do not re-order them
+  hists.push_back(hItaly);
+  hists.push_back(hFrance);
+  hists.push_back(hTunnel);
+  hists.push_back(hMountain);
+  hists.push_back(hTop);
+  hists.push_back(hBottom);
+  
+  // Make histos for averages
+  prefix = (isRef)?"refave_":"ave_";
+  TH2D *mItaly = new TH2D((prefix+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
+  TH2D *mFrance = new TH2D((prefix+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
+  TH2D *mTunnel = new TH2D((prefix+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
+  TH2D *mMountain = new TH2D((prefix+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
+  TH2D *mTop = new TH2D((prefix+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
+  TH2D *mBottom = new TH2D((prefix+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
+  
+  // This order MATTERS! Do not re-order them
+  ave_hists.push_back(mItaly);
+  ave_hists.push_back(mFrance);
+  ave_hists.push_back(mTunnel);
+  ave_hists.push_back(mMountain);
+  ave_hists.push_back(mTop);
+  ave_hists.push_back(mBottom);
+  
+  for (int i=0;i<hists.size();i++)
+  {
+    if( hists.at(i)->GetSumw2N() == 0 ) hists.at(i)->Sumw2();
+    if( ave_hists.at(i)->GetSumw2N() == 0 ) ave_hists.at(i)->Sumw2();
+  }
+  
   // Loop the event tree and decode the position
   
-  // Count the number of entries in the tree
-  int nEntries = tree -> GetEntries();
   // Set up a vector of strings to receive the list of calorimeter IDs
   // There is one entry in the vector for each calorimeter hit in the event
   // And it will have a format something like [1302:0.1.0.10.*]
   std::vector<string> *caloHits = 0;
   
-  TTree *thisTree=tree->CopyTree("");
-
+  TTree *thisTree = (isRef)?reftree->CopyTree(""):tree->CopyTree("");
+  
+  // Count the number of entries in the tree
+  int nEntries = thisTree -> GetEntries();
+  // Map the branches
   thisTree->SetBranchAddress(mapBranch.c_str(), &caloHits);
   
-  std::vector<double> *toAverage =0;
+  std::vector<double> *toAverage = 0;
   if (isAverage)
   {
     thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
   }
-
+  
   // Loop through the tree
   for( int iEntry = 0; iEntry < nEntries; iEntry++ )
   {
@@ -582,7 +761,7 @@ void PlotCaloMap(string branchName)
       for (int i=0;i<caloHits->size();i++)
       {
         string thisHit=caloHits->at(i);
-        //cout<<thisHit<<endl;
+        
         if (thisHit.length()>=9)
         {
           bool isFrance=(thisHit.substr(8,1)=="1");
@@ -603,7 +782,7 @@ void PlotCaloMap(string branchName)
             pos=useThisToParse.find('.');
             std::string::size_type sz;   // alias of size_t
             xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-
+            
             // and the bit before the next . characters for y
             useThisToParse=useThisToParse.substr(pos+1);
             pos=useThisToParse.find_first_of('.');
@@ -642,8 +821,8 @@ void PlotCaloMap(string branchName)
               xValue = -1 * (xValue + 1);
             }
             
-         //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
-
+            //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
+            
           }
           else if (wallType == "1252") // veto walls
           {
@@ -679,7 +858,7 @@ void PlotCaloMap(string branchName)
           if (whichHistogram==hBottom) whichAverage =mBottom;
           if (isAverage)
           {
-            whichAverage->Fill(xValue,yValue,toAverage->at(i));
+            whichAverage->Fill(xValue,yValue,toAverage->at(i));  // !! What should we be doing with the uncertainty here?
           }
         }// end parsable string
       } // end for each hit
@@ -687,40 +866,36 @@ void PlotCaloMap(string branchName)
   }
   if (isAverage)
   {
-    mFrance->Divide(hFrance); mFrance->Write("",TObject::kOverwrite);
-    mItaly->Divide(hItaly); mItaly->Write("",TObject::kOverwrite);
-    mTunnel->Divide(hTunnel); mTunnel->Write("",TObject::kOverwrite);
-    mMountain->Divide(hMountain); mMountain->Write("",TObject::kOverwrite);
-    mTop->Divide(hTop); mTop->Write("",TObject::kOverwrite);
-    mBottom->Divide(hBottom); mBottom->Write("",TObject::kOverwrite);
-    
-    // Print them all to a png file
-    PrintCaloPlots(branchName,title,mItaly,mFrance,mTunnel,mMountain,mTop,mBottom);
+    for (int i=0;i<hists.size();i++)
+    {
+      ave_hists.at(i)->Divide(hists.at(i)); // Go from totals to averages
+      ave_hists.at(i)->Write("",TObject::kOverwrite); // Write the average histograms
+    }
+    return ave_hists;
   }
-  else{
-  // Write the histograms to a file
-  hFrance->Write("",TObject::kOverwrite);
-  hItaly->Write("",TObject::kOverwrite);
-  hTunnel->Write("",TObject::kOverwrite);
-  hMountain->Write("",TObject::kOverwrite);
-  hTop->Write("",TObject::kOverwrite);
-  hBottom->Write("",TObject::kOverwrite);
+  else
+  {
+    // Write the histograms to a file
+    double scale=(double)tree->GetEntries()/thisTree->GetEntries(); // Scale to the main tree, if it is a reference tree - otherwise scale is just 1
+    for (int i=0;i<hists.size();i++)
+    {
+      if (isRef) hists.at(i)->Scale(scale);
+      hists.at(i)->Write("",TObject::kOverwrite);
+    }
+    return hists;
+  }
   
-  // Print them all to a png file
-  PrintCaloPlots(branchName,title,hItaly,hFrance,hTunnel,hMountain,hTop,hBottom);
-
-  }
-
+  return hists;
 }
+
+
 
 /**
  *  Plot a map of the tracker cells
  */
 void PlotTrackerMap(string branchName)
 {
-//  int maxlayers=9;
-//  int maxrows=113;
-  
+
   string config="";
   config=configParams[branchName]; // get the config loaded from the file if there is one
   
@@ -782,7 +957,7 @@ void PlotTrackerMap(string branchName)
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
   TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, mapBranch);
   if( h->GetSumw2N() == 0 )h->Sumw2();
-  h->Draw("COLZ");
+  h->Draw("COLZ0");
   AnnotateTrackerMap();
   
   // Save to a ROOT file and to a PNG
@@ -855,7 +1030,7 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
   TH2D *hPull = (TH2D*)hSample->Clone();
   hPull->SetName(Form("pull_%s",hPull->GetName()));
   hPull->ClearUnderflowAndOverflow (); // There shouldn't be anything in them anyway but let's be sure
-
+  
   for (int x=0;x<=hSample->GetNbinsX();x++)
   {
       for (int y=0;y<=hSample->GetNbinsY();y++)
@@ -870,6 +1045,7 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
         hPull->SetBinContent(x,y,pull);
       }
   }
+  hPull->GetZaxis()->SetRangeUser(-4.,4.);
   return hPull;
 }
 
@@ -897,7 +1073,7 @@ double CheckTrackerPull(TH2D *hPull)
       {
         if (x > MAX_TRACKER_LAYERS)
           textOut<<"Layer "<<x - MAX_TRACKER_LAYERS<<" (France), row "<<y<<": pull = "<<pull<<endl;
-        else textOut<<"Layer"<< MAX_TRACKER_LAYERS + 1 - x<<" (Italy), row "<<y<<": pull = "<<pull<<endl;
+        else textOut<<"Layer "<< MAX_TRACKER_LAYERS + 1 - x<<" (Italy), row "<<y<<": pull = "<<pull<<endl;
         problemPulls=true;
       }
     }
@@ -944,7 +1120,7 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     {
       thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
     }
-  
+
     // Now we can fill the two plots
     // Loop through the tree
   
@@ -963,14 +1139,14 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
           xValue=trackerHits->at(i)%100;
           if (isAverage && !isnan(toAverageTrk->at(i)))
           {
-            hAve->Fill(xValue,yValue,toAverageTrk->at(i));
+            hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // !! What should we be doing with the uncertainty here?
+
             h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do
           }
           if (!isAverage)
           {
             h->Fill(xValue,yValue); // We will take the lot!
           }
-          
         }
       }
     }
@@ -1049,17 +1225,21 @@ string BranchNameToEnglish(string branchname)
 }
 
 // Arrange all the bits of calorimeter on a canvas
-void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH2* hTunnel,TH2* hMountain,TH2* hTop,TH2* hBottom)
+void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
 {
-  
+  if (histos.size() !=6)
+  {
+    cout<<"Unable to print calorimeter map for "<<branchName<<" as we do not have 6 input histograms"<<endl;
+    return;
+  }
   TCanvas *c = new TCanvas ("caloplots","caloplots",2000,1000);
-  std::vector <TH2*> histos;
-  histos.push_back(hItaly);
-  histos.push_back(hFrance);
-  histos.push_back(hTunnel);
-  histos.push_back(hMountain);
-  histos.push_back(hTop);
-  histos.push_back(hBottom);
+  // Easier if we name them!
+  TH2D *hItaly=histos.at(0);
+  TH2D *hFrance=histos.at(1);
+  TH2D *hTunnel=histos.at(2);
+  TH2D *hMountain=histos.at(3);
+  TH2D *hTop=histos.at(4);
+  TH2D *hBottom=histos.at(5);
   
   //First, 20x13
   TPad *pItaly = new TPad("p_italy",
@@ -1101,18 +1281,20 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   
   // Set them all to the same scale; first work out what it should be
   double max=-9999;
+  double min=0;
   for (int i=0;i<histos.size();i++)
   {
     max=TMath::Max(max,(double)histos.at(i)->GetMaximum());
+    min=TMath::Min(min,(double)histos.at(i)->GetMinimum());
     // While we are here, let's draw the pads
     pads.at(i)->Draw();pads.at(i)->SetGrid();
   }
-  
+  if (min>0)min=0;
   gStyle->SetGridStyle(3);
   gStyle->SetGridColor(kGray);
   for (int i=0;i<histos.size();i++)
   {
-    histos.at(i)->GetZaxis()->SetRangeUser(0,max);
+    histos.at(i)->GetZaxis()->SetRangeUser(min,max);
     histos.at(i)->GetYaxis()->SetNdivisions(histos.at(i)->GetNbinsY());
     histos.at(i)->GetXaxis()->SetNdivisions(histos.at(i)->GetNbinsX());
     histos.at(i)->GetXaxis()->CenterLabels();
@@ -1128,12 +1310,12 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   }
   
   hItaly->GetXaxis()->SetLabelSize(0.06);
-  hItaly->Draw("COLZ"); // Only have the scale over on the right
+  hItaly->Draw("COLZ0"); // Only have the scale over on the right
   WriteLabel(.45,.95,"Italy");
   
   // French main wall
   pFrance->cd();
-  hFrance->Draw("COL");
+  hFrance->Draw("COL0");
   WriteLabel(.4,.95,"France");
   
   // Mountain x wall
@@ -1146,7 +1328,7 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   hMountain->GetXaxis()->SetBinLabel(4,"Fr.");
   hMountain->GetXaxis()->SetLabelSize(0.2);
   
-  hMountain->Draw("COL");
+  hMountain->Draw("COL0");
   WriteLabel(.2,.95,"Mountain",0.15);
   // Draw on the source foil
   TLine *foil=new TLine(0,0,0,16);
@@ -1163,13 +1345,13 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   hTunnel->GetXaxis()->SetBinLabel(3,"");
   hTunnel->GetXaxis()->SetBinLabel(4,"It.");
   hTunnel->GetXaxis()->SetLabelSize(0.2);
-  hTunnel->Draw("COL");
+  hTunnel->Draw("COL0");
   WriteLabel(.25,.95,"Tunnel",0.15);
   foil->Draw("SAME");
   
   // Top veto wall
   pTop->cd();
-  hTop->Draw("COL");
+  hTop->Draw("COL0");
   hTop->GetXaxis()->SetLabelSize(0.1);
   hTop->GetYaxis()->SetLabelSize(0.15);
   TLine *foilveto=new TLine(0,1,16,1);
@@ -1183,7 +1365,7 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   pBottom->cd();
   hBottom->GetXaxis()->SetLabelSize(0.1);
   hBottom->GetYaxis()->SetLabelSize(0.15);
-  hBottom->Draw("COL");
+  hBottom->Draw("COL0");
   foilveto->Draw("SAME");
   WriteLabel(.42,.6,"Bottom",0.2);
   
