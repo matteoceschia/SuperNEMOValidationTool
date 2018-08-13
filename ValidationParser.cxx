@@ -564,7 +564,7 @@ void PlotCaloMap(string branchName)
     // Should be able to calculate the individual chi-squares and then sum them, as long as we remember to sum degrees of freedom too
     Double_t thisChisq=0;
     Int_t thisNdf=0;
-    Double_t p_value= hists.at(i)->Chi2TestX(refHists.at(i), thisChisq, thisNdf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    hists.at(i)->Chi2TestX(refHists.at(i), thisChisq, thisNdf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
     chisq += thisChisq;
     ndf += thisNdf;
   }
@@ -576,7 +576,108 @@ void PlotCaloMap(string branchName)
   textOut<<branchName<<":"<<endl;
   textOut<<"P-value: "<<prob<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
   
+  // Pull plots
+  vector<TH2D*> pullHists = MakeCaloPullPlots(hists,refHists);
+  gStyle->SetPalette(PULL_PALETTE);
   
+  PrintCaloPlots("pull_"+branchName,"Pull: "+title,pullHists);
+  CheckCaloPulls(pullHists);
+  gStyle->SetPalette(PALETTE);
+  
+  textOut<<endl;
+}
+
+// Go through a set of calorimeter pull histograms and report overall pull and
+// any problems
+double CheckCaloPulls(vector<TH2D*> hPulls)
+{
+  //bool problemPulls=false;
+  double totalPull=0;
+  int pullCells=0;
+  for (int i=0;i<hPulls.size();i++)
+  {
+    TH2D *hPull = hPulls.at(i);
+    for (int x=1;x<=hPull->GetNbinsX();x++)
+    {
+      for (int y=1;y<=hPull->GetNbinsY();y++)
+      {
+        // Pull is sample - ref / total uncertainty
+        double pull=hPull->GetBinContent(x,y) ;
+        if (!isnan(pull))
+        {
+          totalPull+=pull;
+          pullCells++;
+        }
+        
+        // Report any cells where sample and reference are too different
+        if (TMath::Abs(pull) > REPORT_PULLS_OVER ||  isnan(pull) )
+        {
+          string reportString;
+          // Unfortunately the numbering scheme maps differently to the bin numbers for each wall
+          string intExt="external"; // Translate x coordinate to position for X walls and vetoes
+          string side="French";
+          switch (i)
+          {
+            case 0: // Italy
+              reportString=Form("Italian main wall: module (%d,%d) pull = %.2f",20-x,y-1,pull);
+              break;
+            case 1: // France
+              reportString=Form("French main wall: module (%d,%d) pull = %.2f",x-1,y-1,pull);
+              break;
+            case 2: // Tunnel
+              if (x>2) side = "Italian"; // Translate x bin to location
+              if (x==2 || x ==3) intExt="internal";
+              reportString=Form("Tunnel X-wall: module %d (",y-1)+side+" side "+intExt+Form(") pull = %.2f",pull);
+              break;
+            case 3: // Mountain
+              if (x<3) side = "Italian"; // Translate x bin to location
+              if (x==2 || x ==3) intExt="internal";
+              reportString=Form("Mountain X-wall: module %d (",y-1)+side+" side "+intExt+Form(") pull = %.2f",pull);
+              break;
+            case 4: // Top
+              if (y==2) side = "Italian"; // Translate y bin to location
+              reportString=Form("Top veto wall: module %d (",x-1)+side+Form(" side) pull = %.2f",pull);
+              break;
+            case 5: // Bottom
+              if (y==1) side = "Italian"; // Translate y bin to location
+              reportString=Form("Bottom veto wall: module %d (",x-1)+side+Form(" side) pull = %.2f",pull);
+              break;
+            default:
+              break;
+              reportString=Form("ERROR: pull found for unknown calorimeter wall %d: this is a bug!",i);
+              
+          }
+          cout<<reportString<<endl;
+          textOut<<reportString<<endl;
+          //cout<<WALLS[i]<<" calorimeter wall: module ("<<x<<","<<y<<") pull = "<<pull<<endl;
+          //textOut<<WALLS[i]<<" calorimeter wall: module ("<<x<<","<<y<<") pull = "<<pull<<endl;
+          //problemPulls=true;
+        }
+        
+      }
+    }
+  }
+
+  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data. ";
+  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data."<<endl;
+  if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
+  else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  return totalPull;
+}
+
+vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef)
+{
+  vector <TH2D*> vPull;
+  if (vSample.size() != vRef.size())
+  { // This should never happen if it only gets called from here
+    cout<<"ERROR: number of sample and reference histograms does not match for "<<vSample.at(0)->GetName()<<endl;
+    return vPull;
+  }
+  for (int i=0;i<vSample.size();i++)
+  {
+    vPull.push_back(PullPlot2D(vSample.at(i), vRef.at(i)));
+  }
+  return vPull;
 }
 
 vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch)
@@ -857,7 +958,7 @@ void PlotTrackerMap(string branchName)
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
   TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, mapBranch);
   if( h->GetSumw2N() == 0 )h->Sumw2();
-  h->Draw("COLZ");
+  h->Draw("COLZ0");
   AnnotateTrackerMap();
   
   // Save to a ROOT file and to a PNG
@@ -930,7 +1031,7 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
   TH2D *hPull = (TH2D*)hSample->Clone();
   hPull->SetName(Form("pull_%s",hPull->GetName()));
   hPull->ClearUnderflowAndOverflow (); // There shouldn't be anything in them anyway but let's be sure
-
+  
   for (int x=0;x<=hSample->GetNbinsX();x++)
   {
       for (int y=0;y<=hSample->GetNbinsY();y++)
@@ -945,6 +1046,7 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
         hPull->SetBinContent(x,y,pull);
       }
   }
+  hPull->GetZaxis()->SetRangeUser(-4.,4.);
   return hPull;
 }
 
@@ -1180,18 +1282,20 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   
   // Set them all to the same scale; first work out what it should be
   double max=-9999;
+  double min=0;
   for (int i=0;i<histos.size();i++)
   {
     max=TMath::Max(max,(double)histos.at(i)->GetMaximum());
+    min=TMath::Min(min,(double)histos.at(i)->GetMinimum());
     // While we are here, let's draw the pads
     pads.at(i)->Draw();pads.at(i)->SetGrid();
   }
-  
+  if (min>0)min=0;
   gStyle->SetGridStyle(3);
   gStyle->SetGridColor(kGray);
   for (int i=0;i<histos.size();i++)
   {
-    histos.at(i)->GetZaxis()->SetRangeUser(0,max);
+    histos.at(i)->GetZaxis()->SetRangeUser(min,max);
     histos.at(i)->GetYaxis()->SetNdivisions(histos.at(i)->GetNbinsY());
     histos.at(i)->GetXaxis()->SetNdivisions(histos.at(i)->GetNbinsX());
     histos.at(i)->GetXaxis()->CenterLabels();
@@ -1207,12 +1311,12 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   }
   
   hItaly->GetXaxis()->SetLabelSize(0.06);
-  hItaly->Draw("COLZ"); // Only have the scale over on the right
+  hItaly->Draw("COLZ0"); // Only have the scale over on the right
   WriteLabel(.45,.95,"Italy");
   
   // French main wall
   pFrance->cd();
-  hFrance->Draw("COL");
+  hFrance->Draw("COL0");
   WriteLabel(.4,.95,"France");
   
   // Mountain x wall
@@ -1225,7 +1329,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hMountain->GetXaxis()->SetBinLabel(4,"Fr.");
   hMountain->GetXaxis()->SetLabelSize(0.2);
   
-  hMountain->Draw("COL");
+  hMountain->Draw("COL0");
   WriteLabel(.2,.95,"Mountain",0.15);
   // Draw on the source foil
   TLine *foil=new TLine(0,0,0,16);
@@ -1242,13 +1346,13 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hTunnel->GetXaxis()->SetBinLabel(3,"");
   hTunnel->GetXaxis()->SetBinLabel(4,"It.");
   hTunnel->GetXaxis()->SetLabelSize(0.2);
-  hTunnel->Draw("COL");
+  hTunnel->Draw("COL0");
   WriteLabel(.25,.95,"Tunnel",0.15);
   foil->Draw("SAME");
   
   // Top veto wall
   pTop->cd();
-  hTop->Draw("COL");
+  hTop->Draw("COL0");
   hTop->GetXaxis()->SetLabelSize(0.1);
   hTop->GetYaxis()->SetLabelSize(0.15);
   TLine *foilveto=new TLine(0,1,16,1);
@@ -1262,7 +1366,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   pBottom->cd();
   hBottom->GetXaxis()->SetLabelSize(0.1);
   hBottom->GetYaxis()->SetLabelSize(0.15);
-  hBottom->Draw("COL");
+  hBottom->Draw("COL0");
   foilveto->Draw("SAME");
   WriteLabel(.42,.6,"Bottom",0.2);
   

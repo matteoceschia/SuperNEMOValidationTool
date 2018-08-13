@@ -45,6 +45,9 @@ int REF_FILL_STYLE=1001;
 int MAX_TRACKER_LAYERS=9;
 int MAX_TRACKER_ROWS=113;
 
+// List of calorimeter walls
+string WALLS[6] = {"Italy","France","Tunnel","Mountain","Top","Bottom"};
+
 // Palettes for general plots and for pull plots
 // (where we want different colours for positive and negative values)
 int PALETTE = kBird;
@@ -74,3 +77,5 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef);
 void AnnotateTrackerMap();
 double CheckTrackerPull(TH2D *hPull);
 vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch = "");
+vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef);
+double CheckCaloPulls(vector<TH2D*> hPulls);
