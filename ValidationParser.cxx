@@ -24,9 +24,9 @@ int main(int argc, char **argv)
 {
   gStyle->SetOptStat(0);
   gStyle->SetPalette(PALETTE);
+  gErrorIgnoreLevel = kWarning;
   if (argc < 2)
   {
-    //cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
     cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
     return -1;
   }
@@ -585,6 +585,7 @@ void PlotCaloMap(string branchName)
   gStyle->SetPalette(PALETTE);
   
   textOut<<endl;
+  cout<<endl;
 }
 
 // Go through a set of calorimeter pull histograms and report overall pull and
@@ -619,47 +620,45 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
           switch (i)
           {
             case 0: // Italy
-              reportString=Form("Italian main wall: module (%d,%d) pull = %.2f",20-x,y-1,pull);
+              reportString=Form("Italian main wall: module (%d,%d)",20-x,y-1);
               break;
             case 1: // France
-              reportString=Form("French main wall: module (%d,%d) pull = %.2f",x-1,y-1,pull);
+              reportString=Form("French main wall: module (%d,%d)",x-1,y-1);
               break;
             case 2: // Tunnel
               if (x>2) side = "Italian"; // Translate x bin to location
               if (x==2 || x ==3) intExt="internal";
-              reportString=Form("Tunnel X-wall: module %d (",y-1)+side+" side "+intExt+Form(") pull = %.2f",pull);
+              reportString=Form("Tunnel X-wall: module %d (",y-1)+side+" side "+intExt+")";
               break;
             case 3: // Mountain
               if (x<3) side = "Italian"; // Translate x bin to location
               if (x==2 || x ==3) intExt="internal";
-              reportString=Form("Mountain X-wall: module %d (",y-1)+side+" side "+intExt+Form(") pull = %.2f",pull);
+              reportString=Form("Mountain X-wall: module %d (",y-1)+side+" side "+intExt+")";
               break;
             case 4: // Top
               if (y==2) side = "Italian"; // Translate y bin to location
-              reportString=Form("Top veto wall: module %d (",x-1)+side+Form(" side) pull = %.2f",pull);
+              reportString=Form("Top veto wall: module %d (",x-1)+side+" side)";
               break;
             case 5: // Bottom
               if (y==1) side = "Italian"; // Translate y bin to location
-              reportString=Form("Bottom veto wall: module %d (",x-1)+side+Form(" side) pull = %.2f",pull);
+              reportString=Form("Bottom veto wall: module %d (",x-1)+side+" side)";
               break;
             default:
               break;
               reportString=Form("ERROR: pull found for unknown calorimeter wall %d: this is a bug!",i);
-              
           }
+          if (isnan(pull)) reportString += " no data: unable to calculate pull";
+          else reportString += Form(" pull = %.2f",pull);
           cout<<reportString<<endl;
           textOut<<reportString<<endl;
-          //cout<<WALLS[i]<<" calorimeter wall: module ("<<x<<","<<y<<") pull = "<<pull<<endl;
-          //textOut<<WALLS[i]<<" calorimeter wall: module ("<<x<<","<<y<<") pull = "<<pull<<endl;
-          //problemPulls=true;
         }
         
       }
     }
   }
 
-  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data. ";
-  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data."<<endl;
+  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data. ";
+  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data."<<endl;
   if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
   else textOut<<"Note: positive pull indicates sample excess."<<endl;
   return totalPull;
