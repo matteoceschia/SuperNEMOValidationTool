@@ -2,9 +2,13 @@
 
 // Global variables
 bool hasConfig=true;
+bool hasValidReference = true;
 TTree *tree;
+TTree *reftree;
 map<string,string> configParams;
 string plotdir;
+ofstream textOut;
+
 int MAINWALL_WIDTH = 20;
 int MAINWALL_HEIGHT = 13;
 int XWALL_DEPTH = 4;
@@ -19,21 +23,65 @@ int VETO_WIDTH = 16;
 int main(int argc, char **argv)
 {
   gStyle->SetOptStat(0);
+  gStyle->SetPalette(PALETTE);
   if (argc < 2)
   {
-    cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
+    //cout<<"Usage: "<<argv[0]<<" <root file> <config file (optional)>"<<endl;
+    cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
     return -1;
   }
-  string rootFileName (argv[1]);
+  // This bit is kept for compatibility with old version that would take just a root file name and a config file name
+  string dataFileInput="";
+  string referenceFileInput="";
+  string configFileInput="";
   if (argc == 2)
   {
-    ParseRootFile(rootFileName);
+    dataFileInput = argv[1];
   }
-  if (argc >=3)
+  else if (argc == 3 && argv[1][0]!= '-')
   {
-    string configFileName (argv[2]);
-    ParseRootFile(rootFileName,configFileName);
+    dataFileInput = argv[1];
+    configFileInput = (argv[2]);
   }
+  else
+  {
+    int flag=0;
+    while ((flag = getopt (argc, argv, "i:r:c:")) != -1)
+    {
+      switch (flag)
+      {
+        case 'i':
+          dataFileInput = optarg;
+          break;
+        case 'r':
+          referenceFileInput = optarg;
+          break;
+        case 'c':
+          configFileInput = optarg;
+          break;
+        case '?':
+          if (optopt == 'i' || optopt == 'r' || optopt == 'c')
+            fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+          else if (isprint (optopt))
+            fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+          else
+            fprintf (stderr,
+                     "Unknown option character `\\x%x'.\n",
+                     optopt);
+          return 1;
+        default:
+          abort ();
+      }
+    }
+  }
+
+  if (dataFileInput.length()<=0)
+  {
+    cout<<"ERROR: Data file name is needed."<<endl;
+    cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
+    return -1;
+  }
+  ParseRootFile(dataFileInput,configFileInput,referenceFileInput);
   return 0;
 }
 
@@ -43,7 +91,7 @@ int main(int argc, char **argv)
  *  rootFileName: path to the ROOT file with SuperNEMO validation data
  *  configFileName: optional to specify how to plot certain variables
  */
-void ParseRootFile(string rootFileName, string configFileName)
+void ParseRootFile(string rootFileName, string configFileName, string refFileName)
 {
 
   // Check the input root file can be opened and contains a tree with the right name
@@ -82,6 +130,29 @@ void ParseRootFile(string rootFileName, string configFileName)
     configParams=LoadConfig(configFile);
   }
   
+  // Check for a reference file
+  
+  TFile *refFile;
+  
+  refFile = new TFile(refFileName.c_str());
+  if (refFile->IsZombie())
+  {
+    cout<<"WARNING: No valid reference ROOT file given. To generate comparison plots, provide a valid reference ROOT file.";
+    if (refFileName.length()>0) cout<<" Bad ROOT file: "<<refFileName;
+    cout <<endl;
+    hasValidReference = false;
+  }
+  if (hasValidReference)
+  {
+    reftree = (TTree*) refFile->Get(treeName.c_str()); // Name is in the .h file for now
+    // Check if it found the tree
+    if (reftree==0)
+    {
+      cout<<"WARNING: no reference data in a tree named "<<treeName<<" found in "<<refFileName<<". To generate comparison plots, provide a valid reference ROOT file."<<endl;
+      hasValidReference = false;
+    }
+  }
+
   // Make a directory to put the plots in
   string rootFileNameNoPath=rootFileName;
   try{
@@ -101,7 +172,19 @@ void ParseRootFile(string rootFileName, string configFileName)
   TFile *outputFile=new TFile((plotdir+"/ValidationHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
   
-  // Get a list of all the branches in the tree
+  if (hasValidReference)
+  {
+    // Open the output text file
+    textOut.open((plotdir+"/ValidationResults.txt").c_str());
+    textOut<<"Sample: "<<rootFileName<<" ("<<tree->GetEntries() <<" entries)"<<endl;
+    textOut<<"SHA-256 hash: "<<FirstWordOf(exec(("shasum -a 256 "+rootFileName).c_str()))<<endl;
+    textOut<<"Compared with "<<refFileName<<" ("<<reftree->GetEntries() <<" entries)"<<endl;
+    textOut<<"SHA-256 hash: "<<FirstWordOf(exec(("shasum -a 256 "+refFileName).c_str()))<<endl;
+    textOut<<endl;
+    
+  }
+
+  // Get a list of all the branches in the main tree
   TObjArray* branches = tree->GetListOfBranches();
   TIter next(branches);
   TBranch *branch;
@@ -114,6 +197,7 @@ void ParseRootFile(string rootFileName, string configFileName)
   
   if (configFile.is_open()) configFile.close();
   outputFile->Close();
+  if (textOut.is_open())  textOut.close();
   return;
 }
 
@@ -134,6 +218,7 @@ bool PlotVariable(string branchName)
       configFound=true;
     }
   }
+  cout<<"Plotting "<<branchName<<":"<<endl;
   switch (branchName[0])
   {
     case 'h':
@@ -153,7 +238,8 @@ bool PlotVariable(string branchName)
     }
     default:
     {
-      //cout<< "Unknown variable type "<<branchName<<": treat as histogram"<<endl;
+      cout<< "Unknown variable type "<<branchName<<": ignoring this branch"<<endl;
+      break;
     }
   }
 
@@ -193,6 +279,16 @@ void Plot1DHistogram(string branchName)
   int lowLimit=0;
   int highLimit=notSetVal;
   string title="";
+  bool hasReferenceBranch=hasValidReference;
+  
+  // Check whether the reference file contains this branch
+  if (hasValidReference)
+  {
+    hasReferenceBranch=reftree->GetBranchStatus(branchName.c_str());
+    if (!hasReferenceBranch) cout<<"WARNING: branch "<<branchName<<" not found in reference file. No comparison plots will be made for this branch"<<endl;
+  }
+  
+  // Read the config information
   if (config.length()>0)
   {
     // title, nbins, low limit, high limit separated by commas
@@ -241,6 +337,7 @@ void Plot1DHistogram(string branchName)
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),900,600);
   TH1D *h;
   tree->Draw(branchName.c_str());
+  
   if (highLimit == notSetVal)
   {
     // Use the default limits
@@ -271,6 +368,7 @@ void Plot1DHistogram(string branchName)
     }
   }
   h = new TH1D(("plt_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
+  if( h->GetSumw2N() == 0 )h->Sumw2();
   h->GetYaxis()->SetTitle("Events");
   h->GetXaxis()->SetTitle(title.c_str());
   h->SetFillColor(kPink-6);
@@ -278,6 +376,107 @@ void Plot1DHistogram(string branchName)
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  if (hasReferenceBranch)
+  {
+    TCanvas  *comp_canv= new TCanvas(("compare_"+branchName).c_str(),("compare_"+branchName).c_str(),900,900);
+    TPad *p_comp = new TPad("p_comp",
+                            "",0.0,0.4,1,1,0);
+    
+    TPad *p_ratio = new TPad("p_ratio",
+                            "",0.0,0.0,1,0.4,0);
+    p_comp->Draw();
+    p_ratio->Draw();
+    
+    p_comp->cd();
+    // Make the reference plot with the same binning
+    TH1D *href = new TH1D(("ref_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
+    if( href->GetSumw2N() == 0 )href->Sumw2();
+    reftree->Draw((branchName + ">> ref_"+branchName).c_str());
+    
+    // Normalise reference number of events to data
+    Double_t scale = (double)tree->GetEntries()/(double)reftree->GetEntries();
+    href->Scale(scale);
+    
+    // Save a plot with both on the same axes
+    double maxy = h->GetMaximum()>href->GetMaximum()?h->GetMaximum()*1.1:href->GetMaximum()*1.1;
+    h->GetYaxis()->SetRangeUser(0,maxy);
+
+    // Draw the sample to get the right axis
+    h->SetLineColor(kBlack);
+    h->SetMarkerStyle(20);
+    h->SetMarkerSize(.5);
+    h->SetMarkerColor(kBlack);
+    h->SetLineWidth(1);
+    h->SetLineStyle(1);
+    h->Draw("E");
+    
+    // Draw the error bars on the reference
+    href->SetFillColor(REF_FILL_COLOR);
+    href->SetFillStyle(REF_FILL_STYLE);
+    href->SetLineColor(REF_LINE_COLOR);
+    href->SetMarkerStyle(0);
+    href->DrawCopy("E2 SAME");
+    // Then the reference central value
+    href->SetFillColor(0);
+    href->DrawCopy("HIST SAME");
+    // Finally redraw the sample so it is on top
+    h->DrawCopy("E1 X0 SAME");
+
+
+    // Add a legend
+    TLegend* legend = new TLegend(0.75,0.8,0.9,0.9);
+    href->SetFillColor(REF_FILL_COLOR); // change it back so it is included in the legend
+    legend->AddEntry(h, "Sample", "lep");
+    legend->AddEntry(href,"Reference", "fl");
+    legend->Draw();
+    
+    // Calculate some stats
+    // Kolmogorov-Smirnov goodness of fit
+    Double_t ks = h->KolmogorovTest(href);
+    Double_t chisq;
+    Int_t ndf;
+    Int_t iGoodCheck=0;
+    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    cout<<"Kolmogorov: "<<ks<<endl;
+    cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+    
+    // Write to output file
+    textOut<<branchName<<":"<<endl;
+    textOut<<"KS score: "<<ks<<endl;
+    textOut<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+
+
+    // Now make a ratio plot
+    //TCanvas *c_ratio = new TCanvas (("ratio_"+branchName).c_str(),("ratio_"+branchName).c_str(),900,600);
+    p_ratio->cd();
+    TH1D *ratio_hist = (TH1D*)h->Clone(("ratio_"+branchName).c_str());
+    ratio_hist->SetTitle("");
+    ratio_hist->GetXaxis()->SetTitle("");
+    ratio_hist->Divide(href);
+    // Set a more sensible y axis
+    ratio_hist->GetYaxis()->SetRangeUser(ratio_hist->GetBinContent(ratio_hist->GetMinimumBin())*0.9,ratio_hist->GetBinContent(ratio_hist->GetMaximumBin())*1.1);
+    ratio_hist->SetLineColor(kBlack);
+    ratio_hist->GetYaxis()->SetTitle("Ratio to reference");
+    ratio_hist->GetYaxis()->SetLabelSize(ratio_hist->GetYaxis()->GetLabelSize() * 1.5);
+    ratio_hist->GetYaxis()->SetTitleSize(ratio_hist->GetYaxis()->GetTitleSize() * 1.5);
+    ratio_hist->Draw();
+
+    WriteLabel(0.6,0.8, Form("K-S score (binned): %.2f",ks),0.04);
+    WriteLabel(0.6,0.72, Form("#chi^{2}/NDF: %.1f/%d = %.1f",chisq,ndf,chisq/(double)ndf),0.04);
+    WriteLabel(0.6,0.64, Form("(p-value %.2f)",p_value),0.04);
+    
+    TLine *line=new TLine(c->GetUxmin(),1.0,c->GetUxmax(),1.0);
+    line->SetLineColor(kRed);
+    line->Draw();
+    //c_ratio->SaveAs((plotdir+"/ratio_"+branchName+".png").c_str());
+    comp_canv->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
+    
+    textOut<<endl;
+    delete href;
+    delete ratio_hist;
+   // delete c_ratio;
+    delete comp_canv;
+  }
   delete h;
   delete c;
 }
@@ -519,12 +718,21 @@ void PlotCaloMap(string branchName)
  */
 void PlotTrackerMap(string branchName)
 {
-  //cout<<endl; // THIS LINE STOPS IT CRASHING BUT WHY?!?!
-  int maxlayers=9;
-  int maxrows=113;
+//  int maxlayers=9;
+//  int maxrows=113;
   
   string config="";
   config=configParams[branchName]; // get the config loaded from the file if there is one
+  
+  // Can we do a comparison to the reference for this plot?
+  bool hasReferenceBranch=hasValidReference;
+  
+  // Check whether the reference file contains this branch
+  if (hasValidReference)
+  {
+    hasReferenceBranch=reftree->GetBranchStatus(branchName.c_str());
+    if (!hasReferenceBranch) cout<<"WARNING: branch "<<branchName<<" not found in reference file. No comparison plots will be made for this branch"<<endl;
+  }
   
   string title="";
   // Load the title from the config file
@@ -548,6 +756,18 @@ void PlotTrackerMap(string branchName)
       return;
     }
     mapBranch=branchName.substr(pos+1);
+    
+    // Check whether the sample file and the reference file contain the map branch
+    if (!tree->GetBranchStatus(mapBranch.c_str()))
+    {
+      cout<<"WARNING: map branch "<<mapBranch<<" not found in sample file. No plots can be made for the branch "<<branchName<<endl;
+      return; // We can't do the plot at all
+    }
+    if (hasReferenceBranch) // so far it is alright... but does the reference have the map branch?
+    {
+      hasReferenceBranch=reftree->GetBranchStatus(mapBranch.c_str());
+      if (!hasReferenceBranch) cout<<"WARNING: map branch "<<mapBranch<<" not found in reference file. No comparison plots can be made for the branch "<<branchName<<endl;
+    }
     branchName=branchName.substr(0,pos);
     isAverage=true;
   }
@@ -558,92 +778,220 @@ void PlotTrackerMap(string branchName)
     title = BranchNameToEnglish(branchName);
   }
 
-
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
-  TH2D *h = new TH2D(("plt_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
-  h->Sumw2(); // Important to get errors right
-  TH2D *hAve = new TH2D(("ave_"+branchName).c_str(),title.c_str(),maxlayers*2,maxlayers*-1,maxlayers,maxrows,0,maxrows); // Map of the tracker
-  hAve->Sumw2(); // Important to get errors right
-  h->GetYaxis()->SetTitle("Row");
-  h->GetXaxis()->SetTitle("Layer");
-
-  // This decodes the encoded tracker map to extract the x and y positions
-
-  // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
-  std::vector<int> *trackerHits = 0;
-  
-  std::vector<double> *toAverageTrk = 0;
-  TTree *thisTree=tree->CopyTree("");
-
-  thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
-
-
-  if (isAverage)
-  {
-    thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
-  }
-  
-  //return;
-
-  // Now we can fill the two plots
-  // Loop through the tree
-  
-  int nEntries = tree -> GetEntries();
-  for( int iEntry = 0; iEntry < nEntries; iEntry++ )
-  {
-    thisTree->GetEntry(iEntry);
-    // Populate these with which histogram we will fill and what cell
-    int xValue=0;
-    int yValue=0;
-    if (trackerHits->size()>0)
-    {
-      for (int i=0;i<trackerHits->size();i++)
-      {
-        yValue=TMath::Abs(trackerHits->at(i)/100);
-        xValue=trackerHits->at(i)%100;
-        if (isAverage)
-          hAve->Fill(xValue,yValue,toAverageTrk->at(i));
-        h->Fill(xValue,yValue);
-      }
-    }
-  }
-
-  if (isAverage)
-  {
-    hAve->Divide(h);
-    h=hAve; // overwrite the temp plot with the one we actually want to save
-  }
-  
+  TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, mapBranch);
+  if( h->GetSumw2N() == 0 )h->Sumw2();
   h->Draw("COLZ");
+  AnnotateTrackerMap();
   
-  // Annotate to make it clear what the detector layout is
-  TLine *foil=new TLine(0,0,0,113);
-  foil->SetLineColor(kGray);
-  foil->SetLineWidth(5);
-  foil->Draw("SAME");
-  
-  // Decorate the print
-  WriteLabel(.2,.5,"Italy");
-  WriteLabel(.7,.5,"France");
-  WriteLabel(0.4,.8,"Tunnel");
-  WriteLabel(.4,.15,"Mountain");
+  // Save to a ROOT file and to a PNG
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  
+  // If there is a reference plot, make a pull plot
+  if (hasReferenceBranch)
+  {
+    TH2D *href=TrackerMapHistogram(fullBranchName,branchName, title, true, isAverage, mapBranch);
+    if( href->GetSumw2N() == 0 )href->Sumw2();
+    
+    double scale=(double)tree->GetEntries()/(double)reftree->GetEntries();
+    if (!isAverage) href->Scale(scale); // Normalise it if it is a plot of counts. Don't normalise it if it is an average plot; the number of entries shouldn't matter
+
+    Double_t ks = h->KolmogorovTest(href);
+    Double_t chisq;
+    Int_t ndf;
+    Int_t iGoodCheck=0;
+    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    cout<<"Kolmogorov: "<<ks<<endl;
+    cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+    
+    // Write to output file
+    textOut<<branchName<<":"<<endl;
+    textOut<<"KS score: "<<ks<<endl;
+    textOut<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
+    
+    TH2D *hPull = PullPlot2D(h,href);
+    CheckTrackerPull(hPull);
+    gStyle->SetPalette(PULL_PALETTE);
+    hPull->GetZaxis()->SetRangeUser(-4,4);
+    hPull->Draw("COLZ0");
+    AnnotateTrackerMap();
+    hPull->Write("",TObject::kOverwrite);
+    c->SaveAs((plotdir+"/pull_"+branchName+".png").c_str());
+    
+    gStyle->SetPalette(PALETTE);
+    delete hPull;
+    textOut<<endl;
+  }
+  
   delete h;
   delete c;
 
 }
 
+// Draw the foil and label the French/Italian sides and Tunnel/Mountain ends
+void AnnotateTrackerMap()
+{
+    // Annotate to make it clear what the detector layout is
+    TLine *foil=new TLine(0,0,0,113);
+    foil->SetLineColor(kGray);
+    foil->SetLineWidth(5);
+    foil->Draw("SAME");
+  
+    // Decorate the print
+    WriteLabel(.2,.5,"Italy");
+    WriteLabel(.7,.5,"France");
+    WriteLabel(0.4,.8,"Tunnel");
+    WriteLabel(.4,.15,"Mountain");
+
+}
+// Calculate the pull between two 2d histograms
+TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
+{
+  
+  if( hSample->GetSumw2N() == 0 )  hSample->Sumw2();
+  if( hRef->GetSumw2N() == 0 )hRef->Sumw2();
+  TH2D *hPull = (TH2D*)hSample->Clone();
+  hPull->SetName(Form("pull_%s",hPull->GetName()));
+  hPull->ClearUnderflowAndOverflow (); // There shouldn't be anything in them anyway but let's be sure
+
+  for (int x=0;x<=hSample->GetNbinsX();x++)
+  {
+      for (int y=0;y<=hSample->GetNbinsY();y++)
+      {
+        // Initialize it just in case
+        hPull->SetBinContent(x,y,0);
+        hPull->SetBinError(x,y,0); // This is being lazy, I could probably calculate the error on the pull if I were a better statistician. But do we need it?
+
+        // Pull is sample - ref / total uncertainty
+        double pull=( hSample->GetBinContent(x,y) - hRef->GetBinContent(x,y)) /
+          TMath::Sqrt( pow(hSample->GetBinError(x,y),2) + pow(hRef->GetBinError(x,y),2) );
+        hPull->SetBinContent(x,y,pull);
+      }
+  }
+  return hPull;
+}
+
+// Go through a tracker pull histogram and report overall pull and
+// any problems
+double CheckTrackerPull(TH2D *hPull)
+{
+  bool problemPulls=false;
+  double totalPull=0;
+  int pullCells=0;
+  for (int x=0;x<=hPull->GetNbinsX();x++)
+  {
+    for (int y=0;y<=hPull->GetNbinsY();y++)
+    {
+      // Pull is sample - ref / total uncertainty
+      double pull=hPull->GetBinContent(x,y) ;
+      if (!isnan(pull))
+      {
+        totalPull+=pull;
+        pullCells++;
+      }
+      
+      // Report any cells where sample and reference are too different
+      if (TMath::Abs(pull) > REPORT_PULLS_OVER)
+      {
+        if (x > MAX_TRACKER_LAYERS)
+          textOut<<"Layer "<<x - MAX_TRACKER_LAYERS<<" (France), row "<<y<<": pull = "<<pull<<endl;
+        else textOut<<"Layer"<< MAX_TRACKER_LAYERS + 1 - x<<" (Italy), row "<<y<<": pull = "<<pull<<endl;
+        problemPulls=true;
+      }
+    }
+  }
+  if (problemPulls)
+  {
+    textOut<<"Layers are numbered 1 to 9, with 1 nearest the foil. Rows count from mountain (1) to tunnel ("<<MAX_TRACKER_ROWS<<")."<<endl;
+  }
+  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data. ";
+  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data."<<endl;
+  if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
+  else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  return totalPull;
+}
+
+// Make the tracker map histogram (either counts or averages, depending on whether there is a map branch)
+// The formatting and decision-making about what goes into the histogram is done separately,
+// this just loops the tree and fills the histogram
+TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch)
+{
+  TTree *inputTree = (isRef?reftree:tree);
+
+  string tmpName="plt_"+branchName;
+  if (isRef) tmpName = "ref_"+tmpName;
+    TH2D *h = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+  if( h->GetSumw2N() == 0 )h->Sumw2(); // Important to get errors right
+  
+    tmpName="ave_"+branchName;
+    if (isRef) tmpName = "ref_"+tmpName;
+    TH2D *hAve = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+    if( hAve->GetSumw2N() == 0 )hAve->Sumw2(); // Important to get errors right
+    h->GetYaxis()->SetTitle("Row");
+    h->GetXaxis()->SetTitle("Layer");
+  
+    // This decodes the encoded tracker map to extract the x and y positions
+  
+    // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
+    std::vector<int> *trackerHits = 0;
+    std::vector<double> *toAverageTrk = 0;
+    TTree *thisTree=inputTree->CopyTree("");
+    thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
+
+    if (isAverage)
+    {
+      thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverageTrk);
+    }
+  
+    // Now we can fill the two plots
+    // Loop through the tree
+  
+    int nEntries = thisTree -> GetEntries();
+    for( int iEntry = 0; iEntry < nEntries; iEntry++ )
+    {
+      thisTree->GetEntry(iEntry);
+      // Populate these with which histogram we will fill and what cell
+      int xValue=0;
+      int yValue=0;
+      if (trackerHits->size()>0)
+      {
+        for (int i=0;i<trackerHits->size();i++)
+        {
+          yValue=TMath::Abs(trackerHits->at(i)/100);
+          xValue=trackerHits->at(i)%100;
+          if (isAverage && !isnan(toAverageTrk->at(i)))
+          {
+            hAve->Fill(xValue,yValue,toAverageTrk->at(i));
+            h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do
+          }
+          if (!isAverage)
+          {
+            h->Fill(xValue,yValue); // We will take the lot!
+          }
+          
+        }
+      }
+    }
+
+    if (isAverage)
+    {
+      hAve->Divide(h);
+      h=hAve; // overwrite the temp plot with the one we actually want to save
+    }
+  return h;
+}
+
 // Just a quick routine to write text at a (x,y) coordinate
 void WriteLabel(double x, double y, string text, double size)
 {
-  TText *txt = new TText(x,y,text.c_str());
+  TLatex *txt=new TLatex();
   txt->SetTextSize(size);
   txt->SetNDC();
-  txt->Draw();
-
+  txt->DrawLatex(x,y,text.c_str());
 }
+
 /**
  *  Return the part of the string that is before the first comma (trimmed of white space)
  *  Modify the input string to be whatever is AFTER the first comma
@@ -664,6 +1012,24 @@ string GetBitBeforeComma(string& input)
     output=input.substr(0,pos);
     boost::trim(output);
     input=input.substr(pos+1);
+  }
+  return output;
+}
+
+/**
+ *  Return the part of the string that is before the first space
+ */
+string FirstWordOf(string input)
+{
+  string output;
+  int pos=input.find_first_of(' ');
+  if (pos <=0)
+  {
+    output=input;
+  }
+  else
+  {
+    output=input.substr(0,pos);
   }
   return output;
 }
@@ -825,6 +1191,19 @@ void PrintCaloPlots(string branchName, string title, TH2* hItaly,TH2* hFrance,TH
   WriteLabel(.1,.5,title,0.2);
   
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
+  
   delete c;
   return;
+}
+
+std::string exec(const char* cmd) {
+  std::array<char, 128> buffer;
+  std::string result;
+  std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+  if (!pipe) throw std::runtime_error("popen() failed!");
+  while (!feof(pipe.get())) {
+    if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
+      result += buffer.data();
+  }
+  return result;
 }
