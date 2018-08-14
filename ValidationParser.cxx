@@ -218,27 +218,29 @@ bool PlotVariable(string branchName)
       configFound=true;
     }
   }
-  cout<<"Plotting "<<branchName<<":"<<endl;
+//  cout<<"Plotting "<<branchName<<":"<<endl;
   switch (branchName[0])
   {
     case 'h':
     {
-      Plot1DHistogram(branchName);
+     // Plot1DHistogram(branchName);
       break;
     }
     case 't':
     {
+      cout<<"Plotting "<<branchName<<":"<<endl;
+
       PlotTrackerMap(branchName);
       break;
     }
     case 'c':
     {
-      PlotCaloMap(branchName);
+ //     PlotCaloMap(branchName);
       break;
     }
     default:
     {
-      cout<< "Unknown variable type "<<branchName<<": ignoring this branch"<<endl;
+ //    cout<< "Unknown variable type "<<branchName<<": ignoring this branch"<<endl;
       break;
     }
   }
@@ -1104,7 +1106,14 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     tmpName="ave_"+branchName;
     if (isRef) tmpName = "ref_"+tmpName;
     TH2D *hAve = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+  
     if( hAve->GetSumw2N() == 0 )hAve->Sumw2(); // Important to get errors right
+  
+  
+    tmpName ="sq_"+tmpName;
+    TH2D *hQuantitySquared = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Use this to get the standard deviation of the measurements
+    if( hQuantitySquared->GetSumw2N() == 0 )hQuantitySquared->Sumw2(); // Important to get errors right
+  
     h->GetYaxis()->SetTitle("Row");
     h->GetXaxis()->SetTitle("Layer");
   
@@ -1139,9 +1148,13 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
           xValue=trackerHits->at(i)%100;
           if (isAverage && !isnan(toAverageTrk->at(i)))
           {
-            hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // !! What should we be doing with the uncertainty here?
-
+            hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // Ignore the uncertainties
+            hQuantitySquared->Fill(xValue,yValue,pow(toAverageTrk->at(i),2)); // We will use this to calculate uncertainty
             h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do
+//            if (xValue==1 && yValue==1)
+//            {
+//              cout<<toAverageTrk->at(i)<<endl;
+//            }
           }
           if (!isAverage)
           {
@@ -1149,11 +1162,37 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
           }
         }
       }
-    }
+    } // Loop all entries
 
     if (isAverage)
     {
-      hAve->Divide(h);
+      hAve->Divide(h); // This should correctly give us the mean
+      hQuantitySquared->Divide(h); // This should correctly give us the mean of the squares
+      
+      
+      // Then variance of the sample is n/(n-1) times  mean of (x^2) - (mean of x)^2
+      // Variance on the MEAN is then variance of sample / number of hits
+      // Take the square root of that to get the error on the mean, which is what we need here
+      // Thank you Glen Cowan, "Statistical data analysis"
+      for (int x = 1; x<=h->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=h->GetNbinsY(); y++)
+        {
+          double nHits = h->GetBinContent(x,y);
+          if (nHits!=0)
+          {
+            double meanSquared= pow(hAve->GetBinContent(x,y),2);
+            double meanOfSquares = hQuantitySquared->GetBinContent(x,y);
+            double variance =  (meanOfSquares - meanSquared)  * nHits / (nHits - 1);
+            hAve->SetBinError(x,y, TMath::Sqrt(variance / nHits) );
+          }
+          else
+          { // Should already be 0 but let's make sure
+            hAve->SetBinContent(x,y,0);
+            hAve->SetBinError(x,y,0);
+          }
+        }
+      }
       h=hAve; // overwrite the temp plot with the one we actually want to save
     }
   return h;
