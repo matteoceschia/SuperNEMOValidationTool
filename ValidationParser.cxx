@@ -218,7 +218,7 @@ bool PlotVariable(string branchName)
       configFound=true;
     }
   }
-  cout<<"Plotting "<<branchName<<":"<<endl;
+  //cout<<"Plotting "<<branchName<<":"<<endl;
   switch (branchName[0])
   {
     case 'h':
@@ -228,6 +228,7 @@ bool PlotVariable(string branchName)
     }
     case 't':
     {
+      cout<<"Plotting "<<branchName<<":"<<endl;
       PlotTrackerMap(branchName);
       break;
     }
@@ -936,6 +937,7 @@ void PlotTrackerMap(string branchName)
       return;
     }
     mapBranch=branchName.substr(pos+1);
+
     
     // Check whether the sample file and the reference file contain the map branch
     if (!tree->GetBranchStatus(mapBranch.c_str()))
@@ -969,6 +971,7 @@ void PlotTrackerMap(string branchName)
       }
     }
   }
+
   
   // Set the title to a default if there isn't anything in the config file
   if (title.length()==0)
@@ -978,7 +981,8 @@ void PlotTrackerMap(string branchName)
 
   // Make the plot
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),600,1200);
-  TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, mapBranch);
+  TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, hasErrorBranch,mapBranch);
+  
   if( h->GetSumw2N() == 0 )h->Sumw2();
   h->Draw("COLZ0");
   AnnotateTrackerMap();
@@ -990,7 +994,7 @@ void PlotTrackerMap(string branchName)
   // If there is a reference plot, make a pull plot
   if (hasReferenceBranch)
   {
-    TH2D *href=TrackerMapHistogram(fullBranchName,branchName, title, true, isAverage, mapBranch);
+    TH2D *href=TrackerMapHistogram(fullBranchName,branchName, title, true, isAverage, hasErrorBranch, mapBranch);
     if( href->GetSumw2N() == 0 )href->Sumw2();
     
     double scale=(double)tree->GetEntries()/(double)reftree->GetEntries();
@@ -1115,15 +1119,26 @@ double CheckTrackerPull(TH2D *hPull)
 // Make the tracker map histogram (either counts or averages, depending on whether there is a map branch)
 // The formatting and decision-making about what goes into the histogram is done separately,
 // this just loops the tree and fills the histogram
-TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch)
+TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, bool hasErrorBranch, string mapBranch)
 {
+  // Get the error branch name
+  string errorBranchName = "";
+  if (hasErrorBranch)
+  {
+    errorBranchName = "err"+branchName.substr(2);
+    hasErrorBranch = tree->GetBranchStatus(errorBranchName.c_str());
+    if (!hasErrorBranch)
+    { // This should have been checked already really
+      cout<<"WARNING: error branch "<< errorBranchName <<" not found for branch "<<branchName<<". Uncertainties will be wrong for this branch's plots and we cannot do comparisons."<<endl;
+    }
+  }
+  
   TTree *inputTree = (isRef?reftree:tree);
 
   string tmpName="plt_"+branchName;
   if (isRef) tmpName = "ref_"+tmpName;
   TH2D *h = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
 
-  
   if( h->GetSumw2N() == 0 )h->Sumw2(); // Important to get errors right
   
     tmpName="ave_"+branchName;
@@ -1138,8 +1153,14 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
     std::vector<int> *trackerHits = 0;
     std::vector<double> *toAverageTrk = 0;
+    std::vector<double> *hitErrors = 0;
     TTree *thisTree=inputTree->CopyTree("");
     thisTree->SetBranchAddress(mapBranch.c_str(), &trackerHits);
+
+    if (hasErrorBranch)
+    {
+      thisTree->SetBranchAddress(errorBranchName.c_str(), &hitErrors);
+    }
 
     if (isAverage)
     {
@@ -1153,24 +1174,53 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     for( int iEntry = 0; iEntry < nEntries; iEntry++ )
     {
       thisTree->GetEntry(iEntry);
+
       // Populate these with which histogram we will fill and what cell
       int xValue=0;
       int yValue=0;
+
       if (trackerHits->size()>0)
       {
+        
         for (int i=0;i<trackerHits->size();i++)
         {
+
+          // Decode the encoded hit location
           yValue=TMath::Abs(trackerHits->at(i)/100);
           xValue=trackerHits->at(i)%100;
+
           if (isAverage && !isnan(toAverageTrk->at(i)))
           {
-            hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // !! What should we be doing with the uncertainty here?
 
-            h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do
+            // Add this quantity to the sum for its cell
+            int xBin=hAve->GetXaxis()->FindBin(xValue);
+            int yBin=hAve->GetYaxis()->FindBin(yValue);
+            int bin=hAve->GetBin(xBin,yBin,0);
+            
+//            if (xBin==1 && yBin ==1)
+//            {
+//              cout<<"Bin 1 before "<< hAve->GetBinContent(bin)<<" +/- "<<hAve->GetBinError(bin)<<endl;
+//              cout<<"Adding "<<toAverageTrk->at(i) <<" +/- "<<hitErrors->at(i)<<endl;
+//            }
+            
+            
+            hAve->SetBinContent(bin, toAverageTrk->at(i) + hAve->GetBinContent(bin)); // Do this instead of fill so we can do the errors manually
+            if (hasErrorBranch)
+            { // Add in the error in quadrature
+              double currentErr = hAve->GetBinError(bin);
+              double newErrorSquared = pow(currentErr,2) + pow(hitErrors->at(i),2);
+              hAve->SetBinError(bin,TMath::Sqrt(newErrorSquared));
+            }
+//            if (xBin==1 && yBin ==1)
+//            {
+//              cout<<"Bin "<<bin<<" after "<< hAve->GetBinContent(bin)<<" +/- "<<hAve->GetBinError(bin)<<endl<<endl;
+//            }
+            h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do.
           }
+
           if (!isAverage)
           {
-            h->Fill(xValue,yValue); // We will take the lot!
+            h->Fill(xValue,yValue); // We will take the lot! And ROOT can manage errors itself
           }
         }
       }
@@ -1178,7 +1228,28 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
 
     if (isAverage)
     {
-      hAve->Divide(h);
+      // Do the division manually to get the errors right. The hAve plot currently includes the
+      // total value and total uncertainty for the quantity in each cell. To get the average, we scale
+      // both value and uncertainty by the number of hits in the cell
+
+      for (int x = 1; x<=h->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=h->GetNbinsY(); y++)
+        {
+          double nHits = h->GetBinContent(x,y);
+          if (nHits!=0)
+          {
+            hAve->SetBinContent(x,y, hAve->GetBinContent(x,y) / nHits);
+            hAve->SetBinError(x,y, hAve->GetBinError(x,y) / nHits);
+          }
+          else
+          { // Should already be 0 but let's make sure
+            hAve->SetBinContent(x,y,0);
+            hAve->SetBinError(x,y,0);
+          }
+        }
+      }
+      
       h=hAve; // overwrite the temp plot with the one we actually want to save
     }
   return h;
