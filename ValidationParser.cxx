@@ -223,7 +223,7 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-      Plot1DHistogram(branchName);
+     // Plot1DHistogram(branchName);
       break;
     }
     case 't':
@@ -233,8 +233,12 @@ bool PlotVariable(string branchName)
     }
     case 'c':
     {
-      PlotCaloMap(branchName);
+     // PlotCaloMap(branchName);
       break;
+    }
+    case 'e':
+    {
+      if (branchName.substr(0,4)=="err_")  break; // Error branches are OK
     }
     default:
     {
@@ -592,7 +596,7 @@ void PlotCaloMap(string branchName)
 // any problems
 double CheckCaloPulls(vector<TH2D*> hPulls)
 {
-  //bool problemPulls=false;
+
   double totalPull=0;
   int pullCells=0;
   for (int i=0;i<hPulls.size();i++)
@@ -901,7 +905,6 @@ void PlotTrackerMap(string branchName)
   
   // Can we do a comparison to the reference for this plot?
   bool hasReferenceBranch=hasValidReference;
-  
   // Check whether the reference file contains this branch
   if (hasValidReference)
   {
@@ -921,6 +924,8 @@ void PlotTrackerMap(string branchName)
   // is it an average?
   string mapBranch=branchName;
   bool isAverage=false;
+  bool hasErrorBranch =false;
+  
   if (branchName[1]=='m')
   {
     // In this case, the branch name should be split in two with a . character
@@ -945,6 +950,24 @@ void PlotTrackerMap(string branchName)
     }
     branchName=branchName.substr(0,pos);
     isAverage=true;
+    
+    // We need to get the uncertainties right for average branches, so that means we need an associated error branch
+    // It's not critical if we aren't doing a comparison, but it is vital for the stats if we are
+    string errorBranchName = "err"+branchName.substr(2);
+    hasErrorBranch = tree->GetBranchStatus(errorBranchName.c_str());
+    if (!hasErrorBranch)
+    {
+      cout<<"WARNING: error branch "<< errorBranchName <<" not found for branch "<<branchName<<". Uncertainties will be wrong for this branch's plots and we cannot do comparisons."<<endl;
+    }
+    if (hasErrorBranch && hasReferenceBranch)
+    { // We can only do the comparison if we have an error branch in the reference tree
+      bool hasRefError = reftree->GetBranchStatus(errorBranchName.c_str());
+      if (!hasRefError)
+      {
+        cout<<"WARNING: error branch "<< errorBranchName <<" not found in reference file. No comparison plots can be made for the branch "<<branchName<<endl;
+        hasReferenceBranch=false;
+      }
+    }
   }
   
   // Set the title to a default if there isn't anything in the config file
@@ -1098,7 +1121,9 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
 
   string tmpName="plt_"+branchName;
   if (isRef) tmpName = "ref_"+tmpName;
-    TH2D *h = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+  TH2D *h = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+
+  
   if( h->GetSumw2N() == 0 )h->Sumw2(); // Important to get errors right
   
     tmpName="ave_"+branchName;
