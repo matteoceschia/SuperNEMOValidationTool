@@ -696,7 +696,6 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     TH2D *m = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
     if( m->GetSumw2N() == 0 ) m->Sumw2();
     ave_hists.push_back(m);
-
     
     // And another to histogram the quantity squared, to be used to calculate the error on the mean
     prefix = (isRef)?"refvar_":"var_";
@@ -705,21 +704,21 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     var_hists.push_back(v);
   }
   
-  
-  TH2D *hItaly=hists.at(ITALY);
-  TH2D *hFrance =hists.at(FRANCE);
-  TH2D *hTunnel = hists.at(TUNNEL);
-  TH2D *hMountain = hists.at(MOUNTAIN);
-  TH2D *hTop = hists.at(TOP);
-  TH2D *hBottom = hists.at(BOTTOM);
-  
-  TH2D *mItaly=ave_hists.at(0);
-  TH2D *mFrance =ave_hists.at(1);
-  TH2D *mTunnel = ave_hists.at(2);
-  TH2D *mMountain = ave_hists.at(3);
-  TH2D *mTop = ave_hists.at(4);
-  TH2D *mBottom = ave_hists.at(5);
-
+//  
+//  TH2D *hItaly=hists.at(ITALY);
+//  TH2D *hFrance =hists.at(FRANCE);
+//  TH2D *hTunnel = hists.at(TUNNEL);
+//  TH2D *hMountain = hists.at(MOUNTAIN);
+//  TH2D *hTop = hists.at(TOP);
+//  TH2D *hBottom = hists.at(BOTTOM);
+//  
+//  TH2D *mItaly=ave_hists.at(0);
+//  TH2D *mFrance =ave_hists.at(1);
+//  TH2D *mTunnel = ave_hists.at(2);
+//  TH2D *mMountain = ave_hists.at(3);
+//  TH2D *mTop = ave_hists.at(4);
+//  TH2D *mBottom = ave_hists.at(5);
+//
 
   // Loop the event tree and decode the position
   
@@ -748,8 +747,8 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     // Populate these with which histogram we will fill and what cell
     int xValue=0;
     int yValue=0;
-    TH2D *whichHistogram=0;
-    TH2D *whichAverage=0; // this is a tad messy
+   // TH2D *whichHistogram=0;
+   // TH2D *whichAverage=0; // this is a tad messy
     
     int whichWall=-1;
     
@@ -770,7 +769,8 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           if (wallType=="1302") // Main walls
           {
             
-            if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+            //if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+            if (isFrance) whichWall = FRANCE; else whichWall = ITALY;
             string useThisToParse = thisHit;
             
             // Hacky way to get the bit between the 2nd and 3rd "." characters for x
@@ -796,7 +796,8 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           else if (wallType == "1232") //x walls
           {
             bool isTunnel=(thisHit.substr(10,1)=="1");
-            if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
+//            if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
+            if (isTunnel) whichWall=TUNNEL; else whichWall = MOUNTAIN;
             // Hacky way to get the bit between the 3rd and 4th "." characters for x
             string useThisToParse = thisHit;
             int pos=0;
@@ -826,7 +827,8 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           else if (wallType == "1252") // veto walls
           {
             bool isTop=(thisHit.substr(10,1)=="1");
-            if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
+//            if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
+            if (isTop) whichWall = TOP; else whichWall = BOTTOM;
             string useThisToParse = thisHit;
             int pos=useThisToParse.find('.');
             for (int j=0;j<4;j++)
@@ -847,18 +849,20 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           }
           
           // Now we know which histogram and the coordinates so write it
-          whichHistogram->Fill(xValue,yValue);
-          // This could be improved! Maybe a map of an enum to the sets of hists
-          if (whichHistogram==hFrance) whichAverage =mFrance;
-          if (whichHistogram==hItaly) whichAverage =mItaly;
-          if (whichHistogram==hTunnel) whichAverage =mTunnel;
-          if (whichHistogram==hMountain) whichAverage =mMountain;
-          if (whichHistogram==hTop) whichAverage =mTop;
-          if (whichHistogram==hBottom) whichAverage =mBottom;
-          if (isAverage)
+          if (whichWall>=0)
           {
-            whichAverage->Fill(xValue,yValue,toAverage->at(i));  // !! What should we be doing with the uncertainty here?
+            hists.at(whichWall)->Fill(xValue,yValue);
+            if (isAverage)
+            {
+              ave_hists.at(whichWall)->Fill(xValue,yValue,toAverage->at(i)); // Sum it for now and we will divide out by number of hits
+              var_hists.at(whichWall)->Fill(xValue,yValue, pow(toAverage->at(i),2)  ); // Sum the squares for variance calculation
+            }
           }
+          else
+          {
+            cout<<"WARNING -- Calo hit found with unknown wall type "<<endl;
+            continue; // We can't plot it if we don't know where to plot it
+          }          
         }// end parsable string
       } // end for each hit
     } // End if there are calo hits
