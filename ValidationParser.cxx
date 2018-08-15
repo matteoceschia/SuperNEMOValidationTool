@@ -9,13 +9,6 @@ map<string,string> configParams;
 string plotdir;
 ofstream textOut;
 
-int MAINWALL_WIDTH = 20;
-int MAINWALL_HEIGHT = 13;
-int XWALL_DEPTH = 4;
-int XWALL_HEIGHT = 16;
-int VETO_DEPTH = 2;
-int VETO_WIDTH = 16;
-
 /**
  *  main function
  * Arguments are <root file> <config file (optional)>
@@ -223,19 +216,18 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-     // Plot1DHistogram(branchName);
+    //  Plot1DHistogram(branchName);
       break;
     }
     case 't':
     {
-      cout<<"Plotting "<<branchName<<":"<<endl;
-
-      PlotTrackerMap(branchName);
+//      PlotTrackerMap(branchName);
       break;
     }
     case 'c':
     {
- //     PlotCaloMap(branchName);
+      cout<<"Plotting "<<branchName<<":"<<endl;
+      PlotCaloMap(branchName);
       break;
     }
     default:
@@ -686,45 +678,50 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
   
   vector<TH2D*> hists;
   vector<TH2D*> ave_hists;
+  vector<TH2D*> var_hists;
   
   string prefix = (isRef)?"ref_":"plt_";
-  // Make 6 2-dimensional histograms for the 6 walls
-  TH2D *hItaly = new TH2D((prefix+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2D *hFrance = new TH2D((prefix+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2D *hTunnel = new TH2D((prefix+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2D *hMountain = new TH2D((prefix+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2D *hTop = new TH2D((prefix+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2D *hBottom = new TH2D((prefix+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
   
-  // This order MATTERS! Do not re-order them
-  hists.push_back(hItaly);
-  hists.push_back(hFrance);
-  hists.push_back(hTunnel);
-  hists.push_back(hMountain);
-  hists.push_back(hTop);
-  hists.push_back(hBottom);
+  for (int i=0; i<6; i++)
+  {
+    // Make a histogram to hold the count for each calo location
+    string prefix = (isRef)?"ref_":"plt_";
+    
+    TH2D *h = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    hists.push_back(h);
+    
+    // Another for the value to be averaged (if an average plot)
+    prefix = (isRef)?"refave_":"ave_";
+    TH2D *m = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    ave_hists.push_back(m);
+    
+    // And another to histogram the quantity squared, to be used to calculate the error on the mean
+    prefix = (isRef)?"refvar_":"var_";
+    TH2D *v = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    var_hists.push_back(v);
+  }
   
-  // Make histos for averages
-  prefix = (isRef)?"refave_":"ave_";
-  TH2D *mItaly = new TH2D((prefix+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2D *mFrance = new TH2D((prefix+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2D *mTunnel = new TH2D((prefix+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2D *mMountain = new TH2D((prefix+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2D *mTop = new TH2D((prefix+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2D *mBottom = new TH2D((prefix+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
   
-  // This order MATTERS! Do not re-order them
-  ave_hists.push_back(mItaly);
-  ave_hists.push_back(mFrance);
-  ave_hists.push_back(mTunnel);
-  ave_hists.push_back(mMountain);
-  ave_hists.push_back(mTop);
-  ave_hists.push_back(mBottom);
+  TH2D *hItaly=hists.at(ITALY);
+  TH2D *hFrance =hists.at(FRANCE);
+  TH2D *hTunnel = hists.at(TUNNEL);
+  TH2D *hMountain = hists.at(MOUNTAIN);
+  TH2D *hTop = hists.at(TOP);
+  TH2D *hBottom = hists.at(BOTTOM);
+  
+  TH2D *mItaly=ave_hists.at(0);
+  TH2D *mFrance =ave_hists.at(1);
+  TH2D *mTunnel = ave_hists.at(2);
+  TH2D *mMountain = ave_hists.at(3);
+  TH2D *mTop = ave_hists.at(4);
+  TH2D *mBottom = ave_hists.at(5);
+
   
   for (int i=0;i<hists.size();i++)
   {
     if( hists.at(i)->GetSumw2N() == 0 ) hists.at(i)->Sumw2();
     if( ave_hists.at(i)->GetSumw2N() == 0 ) ave_hists.at(i)->Sumw2();
+  //  if( var_hists.at(i)->GetSumw2N() == 0 ) var_hists.at(i)->Sumw2();
   }
   
   // Loop the event tree and decode the position
@@ -756,6 +753,9 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     int yValue=0;
     TH2D *whichHistogram=0;
     TH2D *whichAverage=0; // this is a tad messy
+    
+    int whichWall=-1;
+    
     // This should always work, but there is next to no catching of badly formatted
     // geom ID strings. Are they a possibility?
     if (caloHits->size()>0)

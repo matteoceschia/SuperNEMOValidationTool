@@ -55,6 +55,23 @@ int PULL_PALETTE=kThermometer;
 // is more than this many sigma
 double REPORT_PULLS_OVER=3.;
 
+// Calorimeter dimensions
+
+int MAINWALL_WIDTH = 20;
+int MAINWALL_HEIGHT = 13;
+int XWALL_DEPTH = 4;
+int XWALL_HEIGHT = 16;
+int VETO_DEPTH = 2;
+int VETO_WIDTH = 16;
+
+// 6 walls for the calorimeters, the order matters
+enum WALL  {ITALY, FRANCE, TUNNEL, MOUNTAIN, TOP, BOTTOM};
+string CALO_WALL[6] = {"Italy","France","Tunnel","Mountain","Top","Bottom"};
+int CALO_XBINS[6] = {MAINWALL_WIDTH,MAINWALL_WIDTH,XWALL_DEPTH,XWALL_DEPTH,VETO_WIDTH,VETO_WIDTH};
+int CALO_XLO[6] = {-1*MAINWALL_WIDTH,0,-1 * XWALL_DEPTH/2,-1 * XWALL_DEPTH/2,0,0};
+int CALO_XHI[6] = {0,MAINWALL_WIDTH,XWALL_DEPTH/2,XWALL_DEPTH/2,VETO_WIDTH,VETO_WIDTH};
+int CALO_YBINS[6] = {MAINWALL_HEIGHT,MAINWALL_HEIGHT,XWALL_HEIGHT,XWALL_HEIGHT,VETO_DEPTH,VETO_DEPTH}; // They are all zero to nbins in the y direction
+
 int main(int argc, char **argv);
 void ParseRootFile(string rootFileName, string configFileName="", string refFileName="");
 bool PlotVariable(string branchName);
