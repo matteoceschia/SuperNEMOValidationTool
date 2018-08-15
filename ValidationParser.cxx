@@ -894,8 +894,17 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     double scale=(double)tree->GetEntries()/thisTree->GetEntries(); // Scale to the main tree, if it is a reference tree - otherwise scale is just 1
     for (int i=0;i<hists.size();i++)
     {
+      // If count is 0, set uncertainty to 1
+      for (int x = 1; x<=hists.at(i)->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=hists.at(i)->GetNbinsY(); y++)
+        {
+          double nHits = hists.at(i)->GetBinContent(x,y);
+          if (nHits==0) hists.at(i)->SetBinError(x,y, 1);
+        }
+      }
       if (isRef) hists.at(i)->Scale(scale);
-      hists.at(i)->Write("",TObject::kOverwrite);
+      hists.at(i)->Write("",TObject::kOverwrite);      
     }
     return hists;
   }
@@ -1164,10 +1173,6 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
             hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // Ignore the uncertainties
             hQuantitySquared->Fill(xValue,yValue,pow(toAverageTrk->at(i),2)); // We will use this to calculate uncertainty
             h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do
-//            if (xValue==1 && yValue==1)
-//            {
-//              cout<<toAverageTrk->at(i)<<endl;
-//            }
           }
           if (!isAverage)
           {
@@ -1192,7 +1197,7 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
         for (int y = 1; y<=h->GetNbinsY(); y++)
         {
           double nHits = h->GetBinContent(x,y);
-          if (nHits>10)
+          if (nHits>1)
           {
             double meanSquared= pow(hAve->GetBinContent(x,y),2);
             double meanOfSquares = hQuantitySquared->GetBinContent(x,y);
@@ -1206,6 +1211,17 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
         }
       }
       h=hAve; // overwrite the temp plot with the one we actually want to save
+    }
+    else
+    { // If count is 0, set uncertainty to 1
+      for (int x = 1; x<=h->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=h->GetNbinsY(); y++)
+        {
+          double nHits = h->GetBinContent(x,y);
+          if (nHits==0) h->SetBinError(x,y, 1);
+        }
+      }
     }
   return h;
 }
