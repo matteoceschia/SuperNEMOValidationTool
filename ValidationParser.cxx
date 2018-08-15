@@ -221,7 +221,7 @@ bool PlotVariable(string branchName)
     }
     case 't':
     {
-//      PlotTrackerMap(branchName);
+      PlotTrackerMap(branchName);
       break;
     }
     case 'c':
@@ -641,7 +641,7 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
               break;
               reportString=Form("ERROR: pull found for unknown calorimeter wall %d: this is a bug!",i);
           }
-          if (isnan(pull)) reportString += " has no data: unable to calculate pull";
+          if (isnan(pull)) reportString += ": not enough data to calculate pull";
           else if (isinf(pull)) reportString += ": not enough data to calculate pull";
           else reportString += Form(": pull = %.2f",pull);
           cout<<reportString<<endl;
@@ -1046,7 +1046,7 @@ void AnnotateTrackerMap()
 
 }
 // Calculate the pull between two 2d histograms
-TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
+TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef )
 {
   
   if( hSample->GetSumw2N() == 0 )  hSample->Sumw2();
@@ -1066,6 +1066,11 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
         // Pull is sample - ref / total uncertainty
         double pull=( hSample->GetBinContent(x,y) - hRef->GetBinContent(x,y)) /
           TMath::Sqrt( pow(hSample->GetBinError(x,y),2) + pow(hRef->GetBinError(x,y),2) );
+        // On an average plot, this doesn't make sense if the number of hits in either sample
+        // is zero - then we just don't know the value of the thing we are averaging.
+        // Same if we only get one hit - we don't know the uncertainty of it so the pull will
+        // be artificially high. We can tell these cases because the error will be 0
+        if (hSample->GetBinError(x,y) == 0 || hRef->GetBinContent(x,y) == 0 ) pull = NAN;
         hPull->SetBinContent(x,y,pull);
       }
   }
@@ -1092,7 +1097,11 @@ double CheckTrackerPull(TH2D *hPull)
         totalPull+=pull;
         pullCells++;
       }
-      
+      else
+      {
+        if (x > MAX_TRACKER_LAYERS)
+          textOut<<"Layer "<<x - MAX_TRACKER_LAYERS<<" (France), row "<<y<<": not enough data to calculate pull"<<endl;
+        else textOut<<"Layer "<< MAX_TRACKER_LAYERS + 1 - x<<" (Italy), row "<<y<<": not enough data to calculate pull"<<endl;      }
       // Report any cells where sample and reference are too different
       if (TMath::Abs(pull) > REPORT_PULLS_OVER)
       {
