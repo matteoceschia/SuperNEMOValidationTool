@@ -686,18 +686,22 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
   {
     // Make a histogram to hold the count for each calo location
     string prefix = (isRef)?"ref_":"plt_";
-    
+    // The binnings etc are all in the header file
     TH2D *h = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    if( h->GetSumw2N() == 0 ) h->Sumw2();
     hists.push_back(h);
     
     // Another for the value to be averaged (if an average plot)
     prefix = (isRef)?"refave_":"ave_";
     TH2D *m = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    if( m->GetSumw2N() == 0 ) m->Sumw2();
     ave_hists.push_back(m);
+
     
     // And another to histogram the quantity squared, to be used to calculate the error on the mean
     prefix = (isRef)?"refvar_":"var_";
     TH2D *v = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    if( v->GetSumw2N() == 0 ) v->Sumw2();
     var_hists.push_back(v);
   }
   
@@ -716,14 +720,7 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
   TH2D *mTop = ave_hists.at(4);
   TH2D *mBottom = ave_hists.at(5);
 
-  
-  for (int i=0;i<hists.size();i++)
-  {
-    if( hists.at(i)->GetSumw2N() == 0 ) hists.at(i)->Sumw2();
-    if( ave_hists.at(i)->GetSumw2N() == 0 ) ave_hists.at(i)->Sumw2();
-  //  if( var_hists.at(i)->GetSumw2N() == 0 ) var_hists.at(i)->Sumw2();
-  }
-  
+
   // Loop the event tree and decode the position
   
   // Set up a vector of strings to receive the list of calorimeter IDs
