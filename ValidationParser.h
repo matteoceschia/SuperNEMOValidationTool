@@ -93,3 +93,4 @@ double CheckTrackerPull(TH2D *hPull);
 vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch = "");
 vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef);
 double CheckCaloPulls(vector<TH2D*> hPulls);
+void OverlayWhiteForNaN(TH2D *hist);

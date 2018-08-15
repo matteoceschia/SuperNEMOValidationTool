@@ -982,6 +982,7 @@ void PlotTrackerMap(string branchName)
   TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, mapBranch);
   if( h->GetSumw2N() == 0 )h->Sumw2();
   h->Draw("COLZ0");
+  OverlayWhiteForNaN(h);
   AnnotateTrackerMap();
   
   // Save to a ROOT file and to a PNG
@@ -1015,6 +1016,7 @@ void PlotTrackerMap(string branchName)
     gStyle->SetPalette(PULL_PALETTE);
     hPull->GetZaxis()->SetRangeUser(-4,4);
     hPull->Draw("COLZ0");
+    OverlayWhiteForNaN(hPull);
     AnnotateTrackerMap();
     hPull->Write("",TObject::kOverwrite);
     c->SaveAs((plotdir+"/pull_"+branchName+".png").c_str());
@@ -1301,6 +1303,31 @@ string BranchNameToEnglish(string branchname)
   return output;
 }
 
+// Draw white squares over anything that is marked as infinite or not a number
+void OverlayWhiteForNaN(TH2D *hist)
+{
+  for (int x=1;x<=hist->GetNbinsX();x++)
+  {
+    for (int y=1;y<=hist->GetNbinsY();y++)
+    {
+      if (isnan(hist->GetBinContent(x,y)))
+      {
+        Double_t x1 = hist->GetXaxis()->GetBinLowEdge(x);
+        Double_t x2 = hist->GetXaxis()->GetBinUpEdge(x);
+        Double_t y1 = hist->GetYaxis()->GetBinLowEdge(y);
+        Double_t y2 = hist->GetYaxis()->GetBinUpEdge(y);
+        
+        TBox *box2 = new TBox(x1, y1, x2, y2);
+        box2->SetFillStyle(1001);
+        box2->SetFillColor(kWhite);
+        box2->SetLineColor(kWhite);
+        box2->SetLineWidth(0);
+        box2->Draw();
+      }
+    }
+  }
+}
+
 // Arrange all the bits of calorimeter on a canvas
 void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
 {
@@ -1388,11 +1415,14 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   
   hItaly->GetXaxis()->SetLabelSize(0.06);
   hItaly->Draw("COLZ0"); // Only have the scale over on the right
+  
+  OverlayWhiteForNaN(hItaly);
   WriteLabel(.45,.95,"Italy");
   
   // French main wall
   pFrance->cd();
   hFrance->Draw("COL0");
+  OverlayWhiteForNaN(hFrance);
   WriteLabel(.4,.95,"France");
   
   // Mountain x wall
@@ -1406,6 +1436,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hMountain->GetXaxis()->SetLabelSize(0.2);
   
   hMountain->Draw("COL0");
+  OverlayWhiteForNaN(hMountain);
   WriteLabel(.2,.95,"Mountain",0.15);
   // Draw on the source foil
   TLine *foil=new TLine(0,0,0,16);
@@ -1423,12 +1454,15 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hTunnel->GetXaxis()->SetBinLabel(4,"It.");
   hTunnel->GetXaxis()->SetLabelSize(0.2);
   hTunnel->Draw("COL0");
+  OverlayWhiteForNaN(hTunnel);
   WriteLabel(.25,.95,"Tunnel",0.15);
   foil->Draw("SAME");
   
   // Top veto wall
   pTop->cd();
   hTop->Draw("COL0");
+  OverlayWhiteForNaN(hTop);
+
   hTop->GetXaxis()->SetLabelSize(0.1);
   hTop->GetYaxis()->SetLabelSize(0.15);
   TLine *foilveto=new TLine(0,1,16,1);
@@ -1443,6 +1477,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hBottom->GetXaxis()->SetLabelSize(0.1);
   hBottom->GetYaxis()->SetLabelSize(0.15);
   hBottom->Draw("COL0");
+  OverlayWhiteForNaN(hBottom);
   foilveto->Draw("SAME");
   WriteLabel(.42,.6,"Bottom",0.2);
   
