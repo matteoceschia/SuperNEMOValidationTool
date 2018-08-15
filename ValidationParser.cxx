@@ -598,7 +598,7 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
       {
         // Pull is sample - ref / total uncertainty
         double pull=hPull->GetBinContent(x,y) ;
-        if (!isnan(pull))
+        if (!isnan(pull) && !isinf(pull))
         {
           totalPull+=pull;
           pullCells++;
@@ -641,8 +641,9 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
               break;
               reportString=Form("ERROR: pull found for unknown calorimeter wall %d: this is a bug!",i);
           }
-          if (isnan(pull)) reportString += " no data: unable to calculate pull";
-          else reportString += Form(" pull = %.2f",pull);
+          if (isnan(pull)) reportString += " has no data: unable to calculate pull";
+          else if (isinf(pull)) reportString += ": not enough data to calculate pull";
+          else reportString += Form(": pull = %.2f",pull);
           cout<<reportString<<endl;
           textOut<<reportString<<endl;
         }
@@ -704,21 +705,6 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     var_hists.push_back(v);
   }
   
-//  
-//  TH2D *hItaly=hists.at(ITALY);
-//  TH2D *hFrance =hists.at(FRANCE);
-//  TH2D *hTunnel = hists.at(TUNNEL);
-//  TH2D *hMountain = hists.at(MOUNTAIN);
-//  TH2D *hTop = hists.at(TOP);
-//  TH2D *hBottom = hists.at(BOTTOM);
-//  
-//  TH2D *mItaly=ave_hists.at(0);
-//  TH2D *mFrance =ave_hists.at(1);
-//  TH2D *mTunnel = ave_hists.at(2);
-//  TH2D *mMountain = ave_hists.at(3);
-//  TH2D *mTop = ave_hists.at(4);
-//  TH2D *mBottom = ave_hists.at(5);
-//
 
   // Loop the event tree and decode the position
   
@@ -1206,7 +1192,7 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
         for (int y = 1; y<=h->GetNbinsY(); y++)
         {
           double nHits = h->GetBinContent(x,y);
-          if (nHits!=0)
+          if (nHits>10)
           {
             double meanSquared= pow(hAve->GetBinContent(x,y),2);
             double meanOfSquares = hQuantitySquared->GetBinContent(x,y);
@@ -1214,8 +1200,7 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
             hAve->SetBinError(x,y, TMath::Sqrt(variance / nHits) );
           }
           else
-          { // Should already be 0 but let's make sure
-            hAve->SetBinContent(x,y,0);
+          { // Don't know the variance on a single measurement...
             hAve->SetBinError(x,y,0);
           }
         }
