@@ -904,7 +904,7 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
         }
       }
       if (isRef) hists.at(i)->Scale(scale);
-      hists.at(i)->Write("",TObject::kOverwrite);      
+      hists.at(i)->Write("",TObject::kOverwrite);
     }
     return hists;
   }
@@ -1070,6 +1070,7 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
       }
   }
   hPull->GetZaxis()->SetRangeUser(-4.,4.);
+  hPull->Write("",TObject::kOverwrite);
   return hPull;
 }
 
