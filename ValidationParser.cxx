@@ -862,7 +862,7 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           {
             cout<<"WARNING -- Calo hit found with unknown wall type "<<endl;
             continue; // We can't plot it if we don't know where to plot it
-          }          
+          }
         }// end parsable string
       } // end for each hit
     } // End if there are calo hits
@@ -872,6 +872,32 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     for (int i=0;i<hists.size();i++)
     {
       ave_hists.at(i)->Divide(hists.at(i)); // Go from totals to averages
+      
+      var_hists.at(i)->Divide(hists.at(i)); // This should correctly give us the mean of the squares
+      
+      
+      // Then variance of the sample is n/(n-1) times  mean of (x^2) - (mean of x)^2
+      // Variance on the MEAN is then variance of sample / number of hits
+      // Take the square root of that to get the error on the mean, which is what we need here
+      // Thank you Glen Cowan, "Statistical data analysis"
+      for (int x = 1; x<=hists.at(i)->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=hists.at(i)->GetNbinsY(); y++)
+        {
+          double nHits = hists.at(i)->GetBinContent(x,y);
+          if (nHits>1)
+          {
+            double meanSquared= pow(ave_hists.at(i)->GetBinContent(x,y),2);
+            double meanOfSquares = var_hists.at(i)->GetBinContent(x,y);
+            double variance =  (meanOfSquares - meanSquared)  * nHits / (nHits - 1);
+            ave_hists.at(i)->SetBinError(x,y, TMath::Sqrt(variance / nHits) );
+          }
+          else
+          { // What's the uncertainty on a single measurement?
+            ave_hists.at(i)->SetBinError(x,y,0);
+          }
+        }
+      }
       ave_hists.at(i)->Write("",TObject::kOverwrite); // Write the average histograms
     }
     return ave_hists;
