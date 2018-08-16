@@ -429,8 +429,7 @@ void Plot1DHistogram(string branchName)
     Double_t ks = h->KolmogorovTest(href);
     Double_t chisq;
     Int_t ndf;
-    Int_t iGoodCheck=0;
-    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM");
+    Double_t p_value = ChiSquared(h, href, chisq, ndf, false);
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
@@ -552,15 +551,16 @@ void PlotCaloMap(string branchName)
 
   Double_t chisq=0;
   Int_t ndf=0;
-  Int_t iGoodCheck=0;
   for (int i=0;i<hists.size();i++)
   {
     // Should be able to calculate the individual chi-squares and then sum them, as long as we remember to sum degrees of freedom too
     Double_t thisChisq=0;
     Int_t thisNdf=0;
-    hists.at(i)->Chi2TestX(refHists.at(i), thisChisq, thisNdf, iGoodCheck, "NORM");
+    ChiSquared(hists.at(i), refHists.at(i), thisChisq, thisNdf, isAverage); // for non-average histograms this will remove a degree of freedom. But we only normalise once
     chisq += thisChisq;
     ndf += thisNdf;
+
+    if (!isAverage && i > 0) ndf +=1; // As we only normalised the whole thing, we should only be decreasing the TOTAL degrees of freedom by 1, not the degrees of freedom for each wall separately. This cancels that out for all but the first wall.
   }
   
   Double_t prob = TMath::Prob(chisq, ndf); // Get it from the combined chi square
@@ -1001,8 +1001,8 @@ void PlotTrackerMap(string branchName)
     Double_t ks = h->KolmogorovTest(href);
     Double_t chisq;
     Int_t ndf;
-    Int_t iGoodCheck=0;
-    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM");
+    Double_t p_value=ChiSquared(h, href, chisq, ndf, isAverage);
+    
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
@@ -1489,6 +1489,47 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   delete c;
   return;
 }
+
+double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage)
+{
+  // Calculate a chi squared per degree of freedom
+  chisq=0;
+  ndf=0;
+  
+  for (int x=1; x<=h1->GetNbinsX();x++)
+  {
+    for (int y=1; y<=h1->GetNbinsY();y++)
+    {
+      double val1 = h1->GetBinContent(x,y);
+      double  val2 = h2->GetBinContent(x,y);
+      double err1 = h1->GetBinError(x,y);
+      double err2 = h2->GetBinError(x,y);
+      
+      // We won't count the bin (or increase the degrees of freedom) if we don't have enough info
+      // This is the case if either uncertainty is zero or  if a value or uncertainty is not a number
+      if ((isnan(val1) || isnan(val2) || isnan(err1) || isnan(err2)))
+      {
+       // cout<<"Insufficient information for bin  ("<<x<<","<<y<<"): do not include in chi square calculation"<<endl;
+        continue;
+      }
+      
+      if (err1 == 0 || err2 == 0) // Should never be the case!
+      {
+        //cout<<"Insufficient information for bin  ("<<x<<","<<y<<"): do not include in chi square calculation"<<endl;
+        continue;
+      }
+      
+      ndf++;
+      double numerator = pow((val1 - val2), 2);
+      double denominator = pow(err1,2) + pow(err2,2);
+      chisq += numerator/denominator;
+    }
+  }
+  // Counts histograms have been area-normalised, so there is one fewer degree of freedom
+  if (!isAverage && ndf>0) ndf -=1;
+  return TMath::Prob(chisq, ndf);
+}
+
 
 std::string exec(const char* cmd) {
   std::array<char, 128> buffer;

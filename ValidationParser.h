@@ -94,3 +94,4 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
 vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef);
 double CheckCaloPulls(vector<TH2D*> hPulls);
 void OverlayWhiteForNaN(TH2D *hist);
+double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage);
