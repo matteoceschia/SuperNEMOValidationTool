@@ -584,7 +584,12 @@ void PlotCaloMap(string branchName)
 // any problems
 double CheckCaloPulls(vector<TH2D*> hPulls)
 {
-  //bool problemPulls=false;
+  string firstName=hPulls.at(0)->GetName();
+  int pos=firstName.find_last_of('_');
+  string hPullName="allpulls"+firstName.substr(8,pos-8);
+  
+  TH1D *h1Pulls = new TH1D(hPullName.c_str(),hPullName.c_str(),100,-10,10);
+  
   double totalPull=0;
   int pullCells=0;
   for (int i=0;i<hPulls.size();i++)
@@ -600,6 +605,7 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
         {
           totalPull+=pull;
           pullCells++;
+          h1Pulls->Fill(pull);
         }
         
         // Report any cells where sample and reference are too different
@@ -654,6 +660,11 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
   cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data."<<endl;
   if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
   else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  // Save the plot of pulls
+  h1Pulls->Write("",TObject::kOverwrite);
+  TCanvas *cPull = new TCanvas("c","c",900,600);
+  h1Pulls->Draw();
+  cPull->SaveAs((plotdir+Form("/%s.png",h1Pulls->GetName())).c_str());
   return totalPull;
 }
 
