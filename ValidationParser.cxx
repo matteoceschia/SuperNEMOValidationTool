@@ -430,7 +430,7 @@ void Plot1DHistogram(string branchName)
     Double_t chisq;
     Int_t ndf;
     Int_t iGoodCheck=0;
-    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM");
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
@@ -558,7 +558,7 @@ void PlotCaloMap(string branchName)
     // Should be able to calculate the individual chi-squares and then sum them, as long as we remember to sum degrees of freedom too
     Double_t thisChisq=0;
     Int_t thisNdf=0;
-    hists.at(i)->Chi2TestX(refHists.at(i), thisChisq, thisNdf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    hists.at(i)->Chi2TestX(refHists.at(i), thisChisq, thisNdf, iGoodCheck, "NORM");
     chisq += thisChisq;
     ndf += thisNdf;
   }
@@ -1002,7 +1002,7 @@ void PlotTrackerMap(string branchName)
     Double_t chisq;
     Int_t ndf;
     Int_t iGoodCheck=0;
-    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM");
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
