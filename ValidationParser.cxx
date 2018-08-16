@@ -556,11 +556,9 @@ void PlotCaloMap(string branchName)
     // Should be able to calculate the individual chi-squares and then sum them, as long as we remember to sum degrees of freedom too
     Double_t thisChisq=0;
     Int_t thisNdf=0;
-    ChiSquared(hists.at(i), refHists.at(i), thisChisq, thisNdf, isAverage); // for non-average histograms this will remove a degree of freedom. But we only normalise once
+    ChiSquared(hists.at(i), refHists.at(i), thisChisq, thisNdf, isAverage);
     chisq += thisChisq;
     ndf += thisNdf;
-
-    if (!isAverage && i > 0) ndf +=1; // As we only normalised the whole thing, we should only be decreasing the TOTAL degrees of freedom by 1, not the degrees of freedom for each wall separately. This cancels that out for all but the first wall.
   }
   
   Double_t prob = TMath::Prob(chisq, ndf); // Get it from the combined chi square
@@ -1525,8 +1523,6 @@ double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage)
       chisq += numerator/denominator;
     }
   }
-  // Counts histograms have been area-normalised, so there is one fewer degree of freedom
-  if (!isAverage && ndf>0) ndf -=1;
   return TMath::Prob(chisq, ndf);
 }
 
