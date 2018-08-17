@@ -216,12 +216,12 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-      Plot1DHistogram(branchName);
+     // Plot1DHistogram(branchName);
       break;
     }
     case 't':
     {
-      PlotTrackerMap(branchName);
+     // PlotTrackerMap(branchName);
       break;
     }
     case 'c':
@@ -575,7 +575,7 @@ void PlotCaloMap(string branchName)
   gStyle->SetPalette(PULL_PALETTE);
   
   PrintCaloPlots("pull_"+branchName,"Pull: "+title,pullHists);
-  CheckCaloPulls(pullHists);
+  CheckCaloPulls(pullHists,title);
   gStyle->SetPalette(PALETTE);
   
   textOut<<endl;
@@ -584,13 +584,13 @@ void PlotCaloMap(string branchName)
 
 // Go through a set of calorimeter pull histograms and report overall pull and
 // any problems
-double CheckCaloPulls(vector<TH2D*> hPulls)
+double CheckCaloPulls(vector<TH2D*> hPulls, string title)
 {
   string firstName=hPulls.at(0)->GetName();
   int pos=firstName.find_last_of('_');
   string hPullName="allpulls"+firstName.substr(8,pos-8);
   
-  TH1D *h1Pulls = new TH1D(hPullName.c_str(),hPullName.c_str(),100,-10,10);
+  TH1D *h1Pulls = new TH1D(hPullName.c_str(),(title+" pulls").c_str(),100,-10,10);
   
   double totalPull=0;
   int pullCells=0;
@@ -658,15 +658,38 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
     }
   }
 
-  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data. ";
-  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data."<<endl;
+  // Save the plot of pulls
+  h1Pulls->GetXaxis()->SetTitle("Pull");
+  h1Pulls->GetYaxis()->SetTitle("Frequency");
+  
+  h1Pulls->Fit("gaus","LQ");
+  TF1 *fit = (TF1*)h1Pulls->GetFunction("gaus");
+  double mean=fit->GetParameter(1);
+  double rms=fit->GetParameter(2);
+  double meanerr=fit->GetParError(1);
+  double rmserr=fit->GetParError(2);
+
+  // Report fitted mean pulls
+  textOut<<"Mean pull:"<<mean<<" +/- "<<meanerr<<" for "<<pullCells<<" modules with data. ";
+  cout<<"Mean pull:"<<mean<<" +/- "<<meanerr<<" for "<<pullCells<<" modules with data."<<endl;
   if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
   else textOut<<"Note: positive pull indicates sample excess."<<endl;
-  // Save the plot of pulls
+  cout<<"RMS of pulls "<<rms<<" +/- "<<rmserr<<endl;
+  textOut<<"RMS of pulls "<<rms<<" +/- "<<rmserr<<endl;
+  
+  
   h1Pulls->Write("",TObject::kOverwrite);
-  TCanvas *cPull = new TCanvas("c","c",900,600);
-  h1Pulls->Draw();
+  TCanvas *cPull = new TCanvas("cPull","cPull",900,600);
+  h1Pulls->Draw("HIST");
+  fit->SetLineColor(kRed);
+  fit->SetLineWidth(2);
+  fit->Draw("SAME");
+  
+  WriteLabel(.6,.75,Form ("Mean pull %.2f #pm %.2f",mean,meanerr),0.03);
+  WriteLabel(.6,.7,Form ("RMS  %.2f #pm %.2f",rms,rmserr),0.03);
+  WriteLabel(.15,.84,title+" pulls",0.04);
   cPull->SaveAs((plotdir+Form("/%s.png",h1Pulls->GetName())).c_str());
+  delete cPull;
   return totalPull;
 }
 

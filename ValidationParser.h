@@ -30,6 +30,7 @@
 #include "TLegend.h"
 #include "TPaveText.h"
 #include "TLatex.h"
+#include "TF1.h"
 
 
 using namespace std;
@@ -92,6 +93,6 @@ void AnnotateTrackerMap();
 double CheckTrackerPull(TH2D *hPull);
 vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch = "");
 vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef);
-double CheckCaloPulls(vector<TH2D*> hPulls);
+double CheckCaloPulls(vector<TH2D*> hPulls, string title="");
 void OverlayWhiteForNaN(TH2D *hist);
 double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage);
