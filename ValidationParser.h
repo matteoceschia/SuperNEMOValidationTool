@@ -90,7 +90,7 @@ string FirstWordOf(string input);
 TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch = "");
 TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef);
 void AnnotateTrackerMap();
-double CheckTrackerPull(TH2D *hPull);
+double CheckTrackerPull(TH2D *hPull, string title);
 vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch = "");
 vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef);
 double CheckCaloPulls(vector<TH2D*> hPulls, string title="");

@@ -221,7 +221,7 @@ bool PlotVariable(string branchName)
     }
     case 't':
     {
-     // PlotTrackerMap(branchName);
+      PlotTrackerMap(branchName);
       break;
     }
     case 'c':
@@ -1052,7 +1052,7 @@ void PlotTrackerMap(string branchName)
     textOut<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
     TH2D *hPull = PullPlot2D(h,href);
-    CheckTrackerPull(hPull);
+    CheckTrackerPull(hPull,title);
     gStyle->SetPalette(PULL_PALETTE);
     hPull->GetZaxis()->SetRangeUser(-4,4);
     hPull->Draw("COLZ0");
@@ -1123,11 +1123,17 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef )
 
 // Go through a tracker pull histogram and report overall pull and
 // any problems
-double CheckTrackerPull(TH2D *hPull)
+double CheckTrackerPull(TH2D *hPull, string title)
 {
   bool problemPulls=false;
   double totalPull=0;
   int pullCells=0;
+  
+  string firstName=hPull->GetName();
+  string hPullName="allpulls"+firstName.substr(4);
+  
+  TH1D *h1Pulls = new TH1D(hPullName.c_str(),(title+" pulls").c_str(),100,-10,10);
+  
   for (int x=0;x<=hPull->GetNbinsX();x++)
   {
     for (int y=0;y<=hPull->GetNbinsY();y++)
@@ -1138,6 +1144,7 @@ double CheckTrackerPull(TH2D *hPull)
       {
         totalPull+=pull;
         pullCells++;
+        h1Pulls->Fill(pull);
       }
       else
       {
@@ -1158,10 +1165,9 @@ double CheckTrackerPull(TH2D *hPull)
   {
     textOut<<"Layers are numbered 1 to 9, with 1 nearest the foil. Rows count from mountain (1) to tunnel ("<<MAX_TRACKER_ROWS<<")."<<endl;
   }
-  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data. ";
-  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data."<<endl;
-  if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
-  else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  
+  
+  PrintPlotOfPulls(h1Pulls,pullCells,title);
   return totalPull;
 }
 
