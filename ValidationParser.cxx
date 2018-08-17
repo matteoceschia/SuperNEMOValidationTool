@@ -657,7 +657,12 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
       }
     }
   }
+  PrintPlotOfPulls(h1Pulls,pullCells,title);
+  return totalPull;
+}
 
+double  PrintPlotOfPulls(TH1D *h1Pulls, int pullCells, string title)
+{
   // Save the plot of pulls
   h1Pulls->GetXaxis()->SetTitle("Pull");
   h1Pulls->GetYaxis()->SetTitle("Frequency");
@@ -668,11 +673,11 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
   double rms=fit->GetParameter(2);
   double meanerr=fit->GetParError(1);
   double rmserr=fit->GetParError(2);
-
+  
   // Report fitted mean pulls
   textOut<<"Mean pull:"<<mean<<" +/- "<<meanerr<<" for "<<pullCells<<" modules with data. ";
   cout<<"Mean pull:"<<mean<<" +/- "<<meanerr<<" for "<<pullCells<<" modules with data."<<endl;
-  if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
+  if (mean < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
   else textOut<<"Note: positive pull indicates sample excess."<<endl;
   cout<<"RMS of pulls "<<rms<<" +/- "<<rmserr<<endl;
   textOut<<"RMS of pulls "<<rms<<" +/- "<<rmserr<<endl;
@@ -690,7 +695,8 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
   WriteLabel(.15,.84,title+" pulls",0.04);
   cPull->SaveAs((plotdir+Form("/%s.png",h1Pulls->GetName())).c_str());
   delete cPull;
-  return totalPull;
+
+  return mean;
 }
 
 vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef)
