@@ -211,12 +211,12 @@ bool PlotVariable(string branchName)
       configFound=true;
     }
   }
-//  cout<<"Plotting "<<branchName<<":"<<endl;
+  cout<<"Plotting "<<branchName<<":"<<endl;
   switch (branchName[0])
   {
     case 'h':
     {
-    //  Plot1DHistogram(branchName);
+      Plot1DHistogram(branchName);
       break;
     }
     case 't':
@@ -226,7 +226,6 @@ bool PlotVariable(string branchName)
     }
     case 'c':
     {
-      cout<<"Plotting "<<branchName<<":"<<endl;
       PlotCaloMap(branchName);
       break;
     }
@@ -366,9 +365,12 @@ void Plot1DHistogram(string branchName)
   h->GetYaxis()->SetTitle("Events");
   h->GetXaxis()->SetTitle(title.c_str());
   h->SetFillColor(kPink-6);
-  h->SetFillStyle(1);
+  h->SetFillStyle(1001);
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
   h->Write("",TObject::kOverwrite);
+  h->Draw("HIST");
+  
+  h->Draw("E SAME");
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   if (hasReferenceBranch)
   {
