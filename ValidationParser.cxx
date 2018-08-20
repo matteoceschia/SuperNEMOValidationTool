@@ -216,7 +216,7 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-     // Plot1DHistogram(branchName);
+     Plot1DHistogram(branchName);
       break;
     }
     case 't':
@@ -231,7 +231,7 @@ bool PlotVariable(string branchName)
     }
     default:
     {
- //    cout<< "Unknown variable type "<<branchName<<": ignoring this branch"<<endl;
+      cout<< "Unknown variable type "<<branchName<<": ignoring this branch"<<endl;
       break;
     }
   }
