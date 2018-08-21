@@ -9,13 +9,6 @@ map<string,string> configParams;
 string plotdir;
 ofstream textOut;
 
-int MAINWALL_WIDTH = 20;
-int MAINWALL_HEIGHT = 13;
-int XWALL_DEPTH = 4;
-int XWALL_HEIGHT = 16;
-int VETO_DEPTH = 2;
-int VETO_WIDTH = 16;
-
 /**
  *  main function
  * Arguments are <root file> <config file (optional)>
@@ -223,7 +216,7 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-      Plot1DHistogram(branchName);
+     Plot1DHistogram(branchName);
       break;
     }
     case 't':
@@ -372,9 +365,12 @@ void Plot1DHistogram(string branchName)
   h->GetYaxis()->SetTitle("Events");
   h->GetXaxis()->SetTitle(title.c_str());
   h->SetFillColor(kPink-6);
-  h->SetFillStyle(1);
+  h->SetFillStyle(1001);
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
   h->Write("",TObject::kOverwrite);
+  h->Draw("HIST");
+  
+  h->Draw("E SAME");
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   if (hasReferenceBranch)
   {
@@ -435,8 +431,7 @@ void Plot1DHistogram(string branchName)
     Double_t ks = h->KolmogorovTest(href);
     Double_t chisq;
     Int_t ndf;
-    Int_t iGoodCheck=0;
-    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    Double_t p_value = ChiSquared(h, href, chisq, ndf, false);
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
@@ -558,13 +553,12 @@ void PlotCaloMap(string branchName)
 
   Double_t chisq=0;
   Int_t ndf=0;
-  Int_t iGoodCheck=0;
   for (int i=0;i<hists.size();i++)
   {
     // Should be able to calculate the individual chi-squares and then sum them, as long as we remember to sum degrees of freedom too
     Double_t thisChisq=0;
     Int_t thisNdf=0;
-    hists.at(i)->Chi2TestX(refHists.at(i), thisChisq, thisNdf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    ChiSquared(hists.at(i), refHists.at(i), thisChisq, thisNdf, isAverage);
     chisq += thisChisq;
     ndf += thisNdf;
   }
@@ -581,7 +575,7 @@ void PlotCaloMap(string branchName)
   gStyle->SetPalette(PULL_PALETTE);
   
   PrintCaloPlots("pull_"+branchName,"Pull: "+title,pullHists);
-  CheckCaloPulls(pullHists);
+  CheckCaloPulls(pullHists,title);
   gStyle->SetPalette(PALETTE);
   
   textOut<<endl;
@@ -590,9 +584,14 @@ void PlotCaloMap(string branchName)
 
 // Go through a set of calorimeter pull histograms and report overall pull and
 // any problems
-double CheckCaloPulls(vector<TH2D*> hPulls)
+double CheckCaloPulls(vector<TH2D*> hPulls, string title)
 {
-  //bool problemPulls=false;
+  string firstName=hPulls.at(0)->GetName();
+  int pos=firstName.find_last_of('_');
+  string hPullName="allpulls"+firstName.substr(8,pos-8);
+  
+  TH1D *h1Pulls = new TH1D(hPullName.c_str(),(title+" pulls").c_str(),100,-10,10);
+  
   double totalPull=0;
   int pullCells=0;
   for (int i=0;i<hPulls.size();i++)
@@ -604,10 +603,11 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
       {
         // Pull is sample - ref / total uncertainty
         double pull=hPull->GetBinContent(x,y) ;
-        if (!isnan(pull))
+        if (!isnan(pull) && !isinf(pull))
         {
           totalPull+=pull;
           pullCells++;
+          h1Pulls->Fill(pull);
         }
         
         // Report any cells where sample and reference are too different
@@ -647,8 +647,9 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
               break;
               reportString=Form("ERROR: pull found for unknown calorimeter wall %d: this is a bug!",i);
           }
-          if (isnan(pull)) reportString += " no data: unable to calculate pull";
-          else reportString += Form(" pull = %.2f",pull);
+          if (isnan(pull)) reportString += ": not enough data to calculate pull";
+          else if (isinf(pull)) reportString += ": not enough data to calculate pull";
+          else reportString += Form(": pull = %.2f",pull);
           cout<<reportString<<endl;
           textOut<<reportString<<endl;
         }
@@ -656,12 +657,46 @@ double CheckCaloPulls(vector<TH2D*> hPulls)
       }
     }
   }
-
-  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data. ";
-  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" modules with data."<<endl;
-  if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
-  else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  PrintPlotOfPulls(h1Pulls,pullCells,title);
   return totalPull;
+}
+
+double  PrintPlotOfPulls(TH1D *h1Pulls, int pullCells, string title)
+{
+  // Save the plot of pulls
+  h1Pulls->GetXaxis()->SetTitle("Pull");
+  h1Pulls->GetYaxis()->SetTitle("Frequency");
+  
+  h1Pulls->Fit("gaus","LQ");
+  TF1 *fit = (TF1*)h1Pulls->GetFunction("gaus");
+  double mean=fit->GetParameter(1);
+  double rms=fit->GetParameter(2);
+  double meanerr=fit->GetParError(1);
+  double rmserr=fit->GetParError(2);
+  
+  // Report fitted mean pulls
+  textOut<<"Mean pull:"<<mean<<" +/- "<<meanerr<<" for "<<pullCells<<" modules with data. ";
+  cout<<"Mean pull:"<<mean<<" +/- "<<meanerr<<" for "<<pullCells<<" modules with data."<<endl;
+  if (mean < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
+  else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  cout<<"RMS of pulls "<<rms<<" +/- "<<rmserr<<endl;
+  textOut<<"RMS of pulls "<<rms<<" +/- "<<rmserr<<endl;
+  
+  
+  h1Pulls->Write("",TObject::kOverwrite);
+  TCanvas *cPull = new TCanvas("cPull","cPull",900,600);
+  h1Pulls->Draw("HIST");
+  fit->SetLineColor(kRed);
+  fit->SetLineWidth(2);
+  fit->Draw("SAME");
+  
+  WriteLabel(.6,.75,Form ("Mean pull %.2f #pm %.2f",mean,meanerr),0.03);
+  WriteLabel(.6,.7,Form ("RMS  %.2f #pm %.2f",rms,rmserr),0.03);
+  WriteLabel(.15,.84,title+" pulls",0.04);
+  cPull->SaveAs((plotdir+Form("/%s.png",h1Pulls->GetName())).c_str());
+  delete cPull;
+
+  return mean;
 }
 
 vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef)
@@ -684,47 +719,33 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
   
   vector<TH2D*> hists;
   vector<TH2D*> ave_hists;
+  vector<TH2D*> var_hists;
   
   string prefix = (isRef)?"ref_":"plt_";
-  // Make 6 2-dimensional histograms for the 6 walls
-  TH2D *hItaly = new TH2D((prefix+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2D *hFrance = new TH2D((prefix+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2D *hTunnel = new TH2D((prefix+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2D *hMountain = new TH2D((prefix+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2D *hTop = new TH2D((prefix+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2D *hBottom = new TH2D((prefix+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
   
-  // This order MATTERS! Do not re-order them
-  hists.push_back(hItaly);
-  hists.push_back(hFrance);
-  hists.push_back(hTunnel);
-  hists.push_back(hMountain);
-  hists.push_back(hTop);
-  hists.push_back(hBottom);
-  
-  // Make histos for averages
-  prefix = (isRef)?"refave_":"ave_";
-  TH2D *mItaly = new TH2D((prefix+branchName+"_italy").c_str(),"Italy",MAINWALL_WIDTH,-1*MAINWALL_WIDTH,0,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // Italian side main wall
-  TH2D *mFrance = new TH2D((prefix+branchName+"_france").c_str(),"France",MAINWALL_WIDTH,0,MAINWALL_WIDTH,MAINWALL_HEIGHT,0,MAINWALL_HEIGHT); // France side main wall
-  TH2D *mTunnel = new TH2D((prefix+branchName+"_tunnel").c_str(),"Tunnel", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Tunnel side x wall
-  TH2D *mMountain = new TH2D((prefix+branchName+"_mountain").c_str(),"Mountain", XWALL_DEPTH ,-1 * XWALL_DEPTH/2,XWALL_DEPTH/2,XWALL_HEIGHT,0,XWALL_HEIGHT); // Mountain side x wall
-  TH2D *mTop = new TH2D((prefix+branchName+"_top").c_str(),"Top", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); //Top gamma veto
-  TH2D *mBottom = new TH2D((prefix+branchName+"_bottom").c_str(),"Bottom", VETO_WIDTH ,0,VETO_WIDTH,VETO_DEPTH,0,VETO_DEPTH); // Bottom gamma veto
-  
-  // This order MATTERS! Do not re-order them
-  ave_hists.push_back(mItaly);
-  ave_hists.push_back(mFrance);
-  ave_hists.push_back(mTunnel);
-  ave_hists.push_back(mMountain);
-  ave_hists.push_back(mTop);
-  ave_hists.push_back(mBottom);
-  
-  for (int i=0;i<hists.size();i++)
+  for (int i=0; i<6; i++)
   {
-    if( hists.at(i)->GetSumw2N() == 0 ) hists.at(i)->Sumw2();
-    if( ave_hists.at(i)->GetSumw2N() == 0 ) ave_hists.at(i)->Sumw2();
+    // Make a histogram to hold the count for each calo location
+    string prefix = (isRef)?"ref_":"plt_";
+    // The binnings etc are all in the header file
+    TH2D *h = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    if( h->GetSumw2N() == 0 ) h->Sumw2();
+    hists.push_back(h);
+    
+    // Another for the value to be averaged (if an average plot)
+    prefix = (isRef)?"refave_":"ave_";
+    TH2D *m = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    if( m->GetSumw2N() == 0 ) m->Sumw2();
+    ave_hists.push_back(m);
+    
+    // And another to histogram the quantity squared, to be used to calculate the error on the mean
+    prefix = (isRef)?"refvar_":"var_";
+    TH2D *v = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
+    if( v->GetSumw2N() == 0 ) v->Sumw2();
+    var_hists.push_back(v);
   }
   
+
   // Loop the event tree and decode the position
   
   // Set up a vector of strings to receive the list of calorimeter IDs
@@ -752,8 +773,11 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     // Populate these with which histogram we will fill and what cell
     int xValue=0;
     int yValue=0;
-    TH2D *whichHistogram=0;
-    TH2D *whichAverage=0; // this is a tad messy
+   // TH2D *whichHistogram=0;
+   // TH2D *whichAverage=0; // this is a tad messy
+    
+    int whichWall=-1;
+    
     // This should always work, but there is next to no catching of badly formatted
     // geom ID strings. Are they a possibility?
     if (caloHits->size()>0)
@@ -771,7 +795,8 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           if (wallType=="1302") // Main walls
           {
             
-            if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+            //if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+            if (isFrance) whichWall = FRANCE; else whichWall = ITALY;
             string useThisToParse = thisHit;
             
             // Hacky way to get the bit between the 2nd and 3rd "." characters for x
@@ -797,7 +822,8 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           else if (wallType == "1232") //x walls
           {
             bool isTunnel=(thisHit.substr(10,1)=="1");
-            if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
+//            if (isTunnel) whichHistogram = hTunnel; else whichHistogram = hMountain;
+            if (isTunnel) whichWall=TUNNEL; else whichWall = MOUNTAIN;
             // Hacky way to get the bit between the 3rd and 4th "." characters for x
             string useThisToParse = thisHit;
             int pos=0;
@@ -827,7 +853,8 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           else if (wallType == "1252") // veto walls
           {
             bool isTop=(thisHit.substr(10,1)=="1");
-            if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
+//            if (isTop) whichHistogram = hTop; else whichHistogram = hBottom;
+            if (isTop) whichWall = TOP; else whichWall = BOTTOM;
             string useThisToParse = thisHit;
             int pos=useThisToParse.find('.');
             for (int j=0;j<4;j++)
@@ -848,17 +875,19 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
           }
           
           // Now we know which histogram and the coordinates so write it
-          whichHistogram->Fill(xValue,yValue);
-          // This could be improved! Maybe a map of an enum to the sets of hists
-          if (whichHistogram==hFrance) whichAverage =mFrance;
-          if (whichHistogram==hItaly) whichAverage =mItaly;
-          if (whichHistogram==hTunnel) whichAverage =mTunnel;
-          if (whichHistogram==hMountain) whichAverage =mMountain;
-          if (whichHistogram==hTop) whichAverage =mTop;
-          if (whichHistogram==hBottom) whichAverage =mBottom;
-          if (isAverage)
+          if (whichWall>=0)
           {
-            whichAverage->Fill(xValue,yValue,toAverage->at(i));  // !! What should we be doing with the uncertainty here?
+            hists.at(whichWall)->Fill(xValue,yValue);
+            if (isAverage)
+            {
+              ave_hists.at(whichWall)->Fill(xValue,yValue,toAverage->at(i)); // Sum it for now and we will divide out by number of hits
+              var_hists.at(whichWall)->Fill(xValue,yValue, pow(toAverage->at(i),2)  ); // Sum the squares for variance calculation
+            }
+          }
+          else
+          {
+            cout<<"WARNING -- Calo hit found with unknown wall type "<<endl;
+            continue; // We can't plot it if we don't know where to plot it
           }
         }// end parsable string
       } // end for each hit
@@ -869,6 +898,32 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     for (int i=0;i<hists.size();i++)
     {
       ave_hists.at(i)->Divide(hists.at(i)); // Go from totals to averages
+      
+      var_hists.at(i)->Divide(hists.at(i)); // This should correctly give us the mean of the squares
+      
+      
+      // Then variance of the sample is n/(n-1) times  mean of (x^2) - (mean of x)^2
+      // Variance on the MEAN is then variance of sample / number of hits
+      // Take the square root of that to get the error on the mean, which is what we need here
+      // Thank you Glen Cowan, "Statistical data analysis"
+      for (int x = 1; x<=hists.at(i)->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=hists.at(i)->GetNbinsY(); y++)
+        {
+          double nHits = hists.at(i)->GetBinContent(x,y);
+          if (nHits>1)
+          {
+            double meanSquared= pow(ave_hists.at(i)->GetBinContent(x,y),2);
+            double meanOfSquares = var_hists.at(i)->GetBinContent(x,y);
+            double variance =  (meanOfSquares - meanSquared)  * nHits / (nHits - 1);
+            ave_hists.at(i)->SetBinError(x,y, TMath::Sqrt(variance / nHits) );
+          }
+          else
+          { // What's the uncertainty on a single measurement?
+            ave_hists.at(i)->SetBinError(x,y,0);
+          }
+        }
+      }
       ave_hists.at(i)->Write("",TObject::kOverwrite); // Write the average histograms
     }
     return ave_hists;
@@ -879,6 +934,15 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     double scale=(double)tree->GetEntries()/thisTree->GetEntries(); // Scale to the main tree, if it is a reference tree - otherwise scale is just 1
     for (int i=0;i<hists.size();i++)
     {
+      // If count is 0, set uncertainty to 1
+      for (int x = 1; x<=hists.at(i)->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=hists.at(i)->GetNbinsY(); y++)
+        {
+          double nHits = hists.at(i)->GetBinContent(x,y);
+          if (nHits==0) hists.at(i)->SetBinError(x,y, 1);
+        }
+      }
       if (isRef) hists.at(i)->Scale(scale);
       hists.at(i)->Write("",TObject::kOverwrite);
     }
@@ -958,6 +1022,7 @@ void PlotTrackerMap(string branchName)
   TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, mapBranch);
   if( h->GetSumw2N() == 0 )h->Sumw2();
   h->Draw("COLZ0");
+  OverlayWhiteForNaN(h);
   AnnotateTrackerMap();
   
   // Save to a ROOT file and to a PNG
@@ -976,8 +1041,8 @@ void PlotTrackerMap(string branchName)
     Double_t ks = h->KolmogorovTest(href);
     Double_t chisq;
     Int_t ndf;
-    Int_t iGoodCheck=0;
-    Double_t p_value= h->Chi2TestX(href, chisq, ndf, iGoodCheck, "NORM, UU, P, CHI2/NDF");
+    Double_t p_value=ChiSquared(h, href, chisq, ndf, isAverage);
+    
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
@@ -987,10 +1052,11 @@ void PlotTrackerMap(string branchName)
     textOut<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
     
     TH2D *hPull = PullPlot2D(h,href);
-    CheckTrackerPull(hPull);
+    CheckTrackerPull(hPull,title);
     gStyle->SetPalette(PULL_PALETTE);
     hPull->GetZaxis()->SetRangeUser(-4,4);
     hPull->Draw("COLZ0");
+    OverlayWhiteForNaN(hPull);
     AnnotateTrackerMap();
     hPull->Write("",TObject::kOverwrite);
     c->SaveAs((plotdir+"/pull_"+branchName+".png").c_str());
@@ -1022,7 +1088,7 @@ void AnnotateTrackerMap()
 
 }
 // Calculate the pull between two 2d histograms
-TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
+TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef )
 {
   
   if( hSample->GetSumw2N() == 0 )  hSample->Sumw2();
@@ -1042,23 +1108,35 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef)
         // Pull is sample - ref / total uncertainty
         double pull=( hSample->GetBinContent(x,y) - hRef->GetBinContent(x,y)) /
           TMath::Sqrt( pow(hSample->GetBinError(x,y),2) + pow(hRef->GetBinError(x,y),2) );
+        // On an average plot, this doesn't make sense if the number of hits in either sample
+        // is zero - then we just don't know the value of the thing we are averaging.
+        // Same if we only get one hit - we don't know the uncertainty of it so the pull will
+        // be artificially high. We can tell these cases because the error will be 0
+        if (hSample->GetBinError(x,y) == 0 || hRef->GetBinContent(x,y) == 0 ) pull = NAN;
         hPull->SetBinContent(x,y,pull);
       }
   }
   hPull->GetZaxis()->SetRangeUser(-4.,4.);
+  hPull->Write("",TObject::kOverwrite);
   return hPull;
 }
 
 // Go through a tracker pull histogram and report overall pull and
 // any problems
-double CheckTrackerPull(TH2D *hPull)
+double CheckTrackerPull(TH2D *hPull, string title)
 {
   bool problemPulls=false;
   double totalPull=0;
   int pullCells=0;
-  for (int x=0;x<=hPull->GetNbinsX();x++)
+  
+  string firstName=hPull->GetName();
+  string hPullName="allpulls"+firstName.substr(4);
+  
+  TH1D *h1Pulls = new TH1D(hPullName.c_str(),(title+" pulls").c_str(),100,-10,10);
+  
+  for (int x=1;x<=hPull->GetNbinsX();x++)
   {
-    for (int y=0;y<=hPull->GetNbinsY();y++)
+    for (int y=1;y<=hPull->GetNbinsY();y++)
     {
       // Pull is sample - ref / total uncertainty
       double pull=hPull->GetBinContent(x,y) ;
@@ -1066,8 +1144,13 @@ double CheckTrackerPull(TH2D *hPull)
       {
         totalPull+=pull;
         pullCells++;
+        h1Pulls->Fill(pull);
       }
-      
+      else
+      {
+        if (x > MAX_TRACKER_LAYERS)
+          textOut<<"Layer "<<x - MAX_TRACKER_LAYERS<<" (France), row "<<y<<": not enough data to calculate pull"<<endl;
+        else textOut<<"Layer "<< MAX_TRACKER_LAYERS + 1 - x<<" (Italy), row "<<y<<": not enough data to calculate pull"<<endl;      }
       // Report any cells where sample and reference are too different
       if (TMath::Abs(pull) > REPORT_PULLS_OVER)
       {
@@ -1082,10 +1165,9 @@ double CheckTrackerPull(TH2D *hPull)
   {
     textOut<<"Layers are numbered 1 to 9, with 1 nearest the foil. Rows count from mountain (1) to tunnel ("<<MAX_TRACKER_ROWS<<")."<<endl;
   }
-  textOut<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data. ";
-  cout<<"Mean pull:"<<totalPull/(double)pullCells<<" for "<<pullCells<<" cells with data."<<endl;
-  if (totalPull < 0)  textOut<<"Note: negative pull indicates sample deficit."<<endl;
-  else textOut<<"Note: positive pull indicates sample excess."<<endl;
+  
+  
+  PrintPlotOfPulls(h1Pulls,pullCells,title);
   return totalPull;
 }
 
@@ -1104,7 +1186,14 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     tmpName="ave_"+branchName;
     if (isRef) tmpName = "ref_"+tmpName;
     TH2D *hAve = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
+  
     if( hAve->GetSumw2N() == 0 )hAve->Sumw2(); // Important to get errors right
+  
+  
+    tmpName ="sq_"+tmpName;
+    TH2D *hQuantitySquared = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Use this to get the standard deviation of the measurements
+    if( hQuantitySquared->GetSumw2N() == 0 )hQuantitySquared->Sumw2(); // Important to get errors right
+  
     h->GetYaxis()->SetTitle("Row");
     h->GetXaxis()->SetTitle("Layer");
   
@@ -1139,8 +1228,8 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
           xValue=trackerHits->at(i)%100;
           if (isAverage && !isnan(toAverageTrk->at(i)))
           {
-            hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // !! What should we be doing with the uncertainty here?
-
+            hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // Ignore the uncertainties
+            hQuantitySquared->Fill(xValue,yValue,pow(toAverageTrk->at(i),2)); // We will use this to calculate uncertainty
             h->Fill(xValue,yValue); // Only fill this if there is something to average over! We don't want to divide by a denominator that includes hits with no useful info. Obviously the best thing would be to not put that stuff in the tuple in the first place, but this works as a protection in case you do
           }
           if (!isAverage)
@@ -1149,12 +1238,48 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
           }
         }
       }
-    }
+    } // Loop all entries
 
     if (isAverage)
     {
-      hAve->Divide(h);
+      hAve->Divide(h); // This should correctly give us the mean
+      hQuantitySquared->Divide(h); // This should correctly give us the mean of the squares
+      
+      
+      // Then variance of the sample is n/(n-1) times  mean of (x^2) - (mean of x)^2
+      // Variance on the MEAN is then variance of sample / number of hits
+      // Take the square root of that to get the error on the mean, which is what we need here
+      // Thank you Glen Cowan, "Statistical data analysis"
+      for (int x = 1; x<=h->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=h->GetNbinsY(); y++)
+        {
+          double nHits = h->GetBinContent(x,y);
+          if (nHits>1)
+          {
+            double meanSquared= pow(hAve->GetBinContent(x,y),2);
+            double meanOfSquares = hQuantitySquared->GetBinContent(x,y);
+            double variance =  (meanOfSquares - meanSquared)  * nHits / (nHits - 1);
+            hAve->SetBinError(x,y, TMath::Sqrt(variance / nHits) );
+          }
+          else
+          { // Don't know the variance on a single measurement...
+            hAve->SetBinError(x,y,0);
+          }
+        }
+      }
       h=hAve; // overwrite the temp plot with the one we actually want to save
+    }
+    else
+    { // If count is 0, set uncertainty to 1
+      for (int x = 1; x<=h->GetNbinsX(); x++)
+      {
+        for (int y = 1; y<=h->GetNbinsY(); y++)
+        {
+          double nHits = h->GetBinContent(x,y);
+          if (nHits==0) h->SetBinError(x,y, 1);
+        }
+      }
     }
   return h;
 }
@@ -1222,6 +1347,31 @@ string BranchNameToEnglish(string branchname)
   string output = branchname.substr(initpos+1,branchname.length());
   output[0]=toupper(output[0]);
   return output;
+}
+
+// Draw white squares over anything that is marked as infinite or not a number
+void OverlayWhiteForNaN(TH2D *hist)
+{
+  for (int x=1;x<=hist->GetNbinsX();x++)
+  {
+    for (int y=1;y<=hist->GetNbinsY();y++)
+    {
+      if (isnan(hist->GetBinContent(x,y)))
+      {
+        Double_t x1 = hist->GetXaxis()->GetBinLowEdge(x);
+        Double_t x2 = hist->GetXaxis()->GetBinUpEdge(x);
+        Double_t y1 = hist->GetYaxis()->GetBinLowEdge(y);
+        Double_t y2 = hist->GetYaxis()->GetBinUpEdge(y);
+        
+        TBox *box2 = new TBox(x1, y1, x2, y2);
+        box2->SetFillStyle(1001);
+        box2->SetFillColor(kWhite);
+        box2->SetLineColor(kWhite);
+        box2->SetLineWidth(0);
+        box2->Draw();
+      }
+    }
+  }
 }
 
 // Arrange all the bits of calorimeter on a canvas
@@ -1311,11 +1461,14 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   
   hItaly->GetXaxis()->SetLabelSize(0.06);
   hItaly->Draw("COLZ0"); // Only have the scale over on the right
+  
+  OverlayWhiteForNaN(hItaly);
   WriteLabel(.45,.95,"Italy");
   
   // French main wall
   pFrance->cd();
   hFrance->Draw("COL0");
+  OverlayWhiteForNaN(hFrance);
   WriteLabel(.4,.95,"France");
   
   // Mountain x wall
@@ -1329,6 +1482,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hMountain->GetXaxis()->SetLabelSize(0.2);
   
   hMountain->Draw("COL0");
+  OverlayWhiteForNaN(hMountain);
   WriteLabel(.2,.95,"Mountain",0.15);
   // Draw on the source foil
   TLine *foil=new TLine(0,0,0,16);
@@ -1346,12 +1500,15 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hTunnel->GetXaxis()->SetBinLabel(4,"It.");
   hTunnel->GetXaxis()->SetLabelSize(0.2);
   hTunnel->Draw("COL0");
+  OverlayWhiteForNaN(hTunnel);
   WriteLabel(.25,.95,"Tunnel",0.15);
   foil->Draw("SAME");
   
   // Top veto wall
   pTop->cd();
   hTop->Draw("COL0");
+  OverlayWhiteForNaN(hTop);
+
   hTop->GetXaxis()->SetLabelSize(0.1);
   hTop->GetYaxis()->SetLabelSize(0.15);
   TLine *foilveto=new TLine(0,1,16,1);
@@ -1366,6 +1523,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hBottom->GetXaxis()->SetLabelSize(0.1);
   hBottom->GetYaxis()->SetLabelSize(0.15);
   hBottom->Draw("COL0");
+  OverlayWhiteForNaN(hBottom);
   foilveto->Draw("SAME");
   WriteLabel(.42,.6,"Bottom",0.2);
   
@@ -1377,6 +1535,45 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   delete c;
   return;
 }
+
+double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage)
+{
+  // Calculate a chi squared per degree of freedom
+  chisq=0;
+  ndf=0;
+  
+  for (int x=1; x<=h1->GetNbinsX();x++)
+  {
+    for (int y=1; y<=h1->GetNbinsY();y++)
+    {
+      double val1 = h1->GetBinContent(x,y);
+      double  val2 = h2->GetBinContent(x,y);
+      double err1 = h1->GetBinError(x,y);
+      double err2 = h2->GetBinError(x,y);
+      
+      // We won't count the bin (or increase the degrees of freedom) if we don't have enough info
+      // This is the case if either uncertainty is zero or  if a value or uncertainty is not a number
+      if ((isnan(val1) || isnan(val2) || isnan(err1) || isnan(err2)))
+      {
+       // cout<<"Insufficient information for bin  ("<<x<<","<<y<<"): do not include in chi square calculation"<<endl;
+        continue;
+      }
+      
+      if (err1 == 0 || err2 == 0) // Should never be the case!
+      {
+        //cout<<"Insufficient information for bin  ("<<x<<","<<y<<"): do not include in chi square calculation"<<endl;
+        continue;
+      }
+      
+      ndf++;
+      double numerator = pow((val1 - val2), 2);
+      double denominator = pow(err1,2) + pow(err2,2);
+      chisq += numerator/denominator;
+    }
+  }
+  return TMath::Prob(chisq, ndf);
+}
+
 
 std::string exec(const char* cmd) {
   std::array<char, 128> buffer;
