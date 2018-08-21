@@ -1022,6 +1022,7 @@ void PlotTrackerMap(string branchName)
   TH2D *h=TrackerMapHistogram(fullBranchName,branchName, title, false, isAverage, mapBranch);
   if( h->GetSumw2N() == 0 )h->Sumw2();
   h->Draw("COLZ0");
+  c->SetRightMargin(0.15);
   OverlayWhiteForNaN(h);
   AnnotateTrackerMap();
   
@@ -1081,10 +1082,10 @@ void AnnotateTrackerMap()
     foil->Draw("SAME");
   
     // Decorate the print
-    WriteLabel(.2,.5,"Italy");
-    WriteLabel(.7,.5,"France");
-    WriteLabel(0.4,.8,"Tunnel");
-    WriteLabel(.4,.15,"Mountain");
+    WriteLabel(.16,.5,"Italy");
+    WriteLabel(.65,.5,"France");
+    WriteLabel(0.39,.8,"Tunnel");
+    WriteLabel(.38,.15,"Mountain");
 
 }
 // Calculate the pull between two 2d histograms
@@ -1095,6 +1096,7 @@ TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef )
   if( hRef->GetSumw2N() == 0 )hRef->Sumw2();
   TH2D *hPull = (TH2D*)hSample->Clone();
   hPull->SetName(Form("pull_%s",hPull->GetName()));
+  hPull->SetTitle(Form("Pull: %s",hPull->GetTitle()));
   hPull->ClearUnderflowAndOverflow (); // There shouldn't be anything in them anyway but let's be sure
   
   for (int x=0;x<=hSample->GetNbinsX();x++)
@@ -1194,9 +1196,6 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     TH2D *hQuantitySquared = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Use this to get the standard deviation of the measurements
     if( hQuantitySquared->GetSumw2N() == 0 )hQuantitySquared->Sumw2(); // Important to get errors right
   
-    h->GetYaxis()->SetTitle("Row");
-    h->GetXaxis()->SetTitle("Layer");
-  
     // This decodes the encoded tracker map to extract the x and y positions
   
     // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
@@ -1281,6 +1280,8 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
         }
       }
     }
+  h->GetYaxis()->SetTitle("Row");
+  h->GetXaxis()->SetTitle("Layer");
   return h;
 }
 
