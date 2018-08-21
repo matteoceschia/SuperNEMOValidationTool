@@ -1134,9 +1134,9 @@ double CheckTrackerPull(TH2D *hPull, string title)
   
   TH1D *h1Pulls = new TH1D(hPullName.c_str(),(title+" pulls").c_str(),100,-10,10);
   
-  for (int x=0;x<=hPull->GetNbinsX();x++)
+  for (int x=1;x<=hPull->GetNbinsX();x++)
   {
-    for (int y=0;y<=hPull->GetNbinsY();y++)
+    for (int y=1;y<=hPull->GetNbinsY();y++)
     {
       // Pull is sample - ref / total uncertainty
       double pull=hPull->GetBinContent(x,y) ;
