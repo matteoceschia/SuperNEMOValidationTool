@@ -331,8 +331,8 @@ void Plot1DHistogram(string branchName)
   string config="";
   config=configParams[branchName]; // get the config loaded from the file if there is one
   int nbins=100;
-  int lowLimit=0;
-  int highLimit=notSetVal;
+  double lowLimit=0;
+  double highLimit=notSetVal;
   string title="";
   bool hasReferenceBranch=hasValidReference;
   
@@ -383,7 +383,6 @@ void Plot1DHistogram(string branchName)
       highLimit=notSetVal;
     }
   }
-  
 
   if (title.length()==0)
   {
