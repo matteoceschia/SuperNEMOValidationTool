@@ -1,6 +1,6 @@
 # SuperNEMOValidation
 
-Last updated July 20, 2018 by Cheryl Patrick
+Last updated August 22, 2018 by Cheryl Patrick
 
 ## Purpose
 This tool takes a ROOT ntuple file in which branches have a specific naming convention and format, and will produce diagnostic plots and statistics of the data in the file. The plots are automatically generated if the ntuple has been properly generated (with the correct naming and format). It can also compare to a reference.
