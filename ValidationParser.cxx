@@ -27,6 +27,7 @@ int main(int argc, char **argv)
   string dataFileInput="";
   string referenceFileInput="";
   string configFileInput="";
+  string tempDirInput="";
   if (argc == 2)
   {
     dataFileInput = argv[1];
@@ -39,7 +40,7 @@ int main(int argc, char **argv)
   else
   {
     int flag=0;
-    while ((flag = getopt (argc, argv, "i:r:c:")) != -1)
+    while ((flag = getopt (argc, argv, "i:r:c:t:")) != -1)
     {
       switch (flag)
       {
@@ -51,6 +52,9 @@ int main(int argc, char **argv)
           break;
         case 'c':
           configFileInput = optarg;
+          break;
+        case 't':
+          tempDirInput = optarg;
           break;
         case '?':
           if (optopt == 'i' || optopt == 'r' || optopt == 'c')
@@ -74,7 +78,7 @@ int main(int argc, char **argv)
     cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
     return -1;
   }
-  ParseRootFile(dataFileInput,configFileInput,referenceFileInput);
+  ParseRootFile(dataFileInput,configFileInput,referenceFileInput,tempDirInput);
   return 0;
 }
 
@@ -84,7 +88,7 @@ int main(int argc, char **argv)
  *  rootFileName: path to the ROOT file with SuperNEMO validation data
  *  configFileName: optional to specify how to plot certain variables
  */
-void ParseRootFile(string rootFileName, string configFileName, string refFileName)
+void ParseRootFile(string rootFileName, string configFileName, string refFileName, string tempDirName)
 {
 
   // Check the input root file can be opened and contains a tree with the right name
@@ -161,8 +165,20 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   {
     cout<< "Directory Created: "<<plotdir<<std::endl;
   }
+  
+  // If there is a temp directory specified, make that too
+  if (tempDirName.length() > 0)
+  {
+    boost::filesystem::path dir(tempDirName.c_str());
+    if(boost::filesystem::create_directory(dir))
+    {
+      cout<< "Directory Created: "<<tempDirName<<std::endl;
+    }
+  }
+  else tempDirName=plotdir; // If no temp directory is specified, we will use the output directory for temp files
+  
   // In the plots directory, make an output ROOT file for the histograms
-  TFile *outputFile=new TFile((plotdir+"/TempHistograms.root").c_str(),"RECREATE");
+  TFile *outputFile=new TFile((tempDirName+"/TempHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
   
   if (hasValidReference)
@@ -196,7 +212,7 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   // If your input ntuple files are too big, ROOT will write them to the output file
   // We don't want that, but we can't avoid it so instead, we will copy the good
   // stuff to a new file and then delete the old stuff. Sigh.
-  MoveHistograms(plotdir+"/TempHistograms.root" , plotdir+"/ValidationHistograms.root");
+  MoveHistograms(tempDirName+"/TempHistograms.root" , plotdir+"/ValidationHistograms.root");
   return;
 }
 
