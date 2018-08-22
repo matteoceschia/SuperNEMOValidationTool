@@ -16,18 +16,18 @@ As you define the tuple yourself, it can include whatever information you like, 
 
 If you wish, you can use a configuration file to set some styling parameters for the plots, for example: a title, number of bins, maximum value. If no config file is provided or if there is no entry for a given branch, the tool will attempt to choose sensible defaults.
 
-As well as storing images of the plots of each variable, the histograms are written to a ROOT file, which you can use for further processing.
-
-In the longer term, there will be an option to pass in two ROOT files; in this case, one of the files will be used as a reference and various quantities will be calculated based on how well the two files match (ratio/pull plots, goodness of fit numbers). This is not yet available.
+As well as storing images of the plots of each variable, the histograms are written to a ROOT file (ValidationHistograms.root), which you can use for further processing.
 
 ## Usage
-`./ValidationParser -i <data ROOT file> -r <reference ROOT file to compare to> -c <config file (optional)>`
+`./ValidationParser -i <data ROOT file> -r <reference ROOT file to compare to> -c <config file (optional)> -t <temp directory (optional)>`
 
 The root file should contain branches that you want to histogram. The naming convention is important and will be explained below. See the example ReconstructionValidationModule for details of how to make an ntuple with correctly named/formatted branches.
 
 The configuration file (which will also be explained below) is optional, and allows you to set a title for the plots.
 
 If a reference file is given it will (eventually) be used to make comparison and ratio plots, and calculate goodness of fit.
+
+If your sample or reference files are large, the tool will need to write a temporary file (up to the size of those ROOT files) while it is working. You can specify a temp directory for those; if you don't, it will just put them into the same directory as your output plots. The temp file will be deleted when the tool completes.
 
 The old syntax of
 `./ValidationParser <data ROOT file> <config file (optional)>`
@@ -60,9 +60,9 @@ This is confusing so here is an example. Let's say we have an event with 2 Geige
 
 The config file allows you to set the title of this, as for the `h_` type branches.
 
-If you have provided a reference file, this will also make a plot of the pull between the sample and the scaled reference. The Kolmogorov-Smirnov goodness of fit and chi-squared per degree of freedom will be calculated and written to an output text file. Any pulls over threshold (by default a difference of +/- 3 sigma) will be logged in the output file, as will the overall average pull.
+If you have provided a reference file, this will also make a plot of the pull between the sample and the scaled reference. The chi-squared per degree of freedom will also be calculated and written to an output text file. Any pulls over threshold (by default a difference of +/- 3 sigma) will be logged in the output file, as will the overall average pull and RMS of the pulls. These will be calculated by plotting the individual pulls in each cell and fitting to a Gaussian (that plot will also be saved).
 
-Note that the pulls are currently incorrect for averaged branches, as there is not currently a facility to set the uncertainties correctly for non-counting branches.
+The uncertainties on averaged branches are taken by finding the error on the mean. In the case that there is only 1 entry (or no entries), there will be insufficient data to calculate a pull or chi squared. The number of degrees of freedom for the chi squared will be decreased accordingly.
 
 **Calorimeter branches:** prefix: `c_`
 
@@ -82,6 +82,6 @@ This is confusing so here is an example. Let's say we have an event with 2 calor
 
 The config file allows you to set the title of this, as for the `h_` type branches.
 
-If you have provided a reference file, this will also make a plot of the pull between the sample and the scaled reference. The chi-squared per degree of freedom will be calculated and written to an output text file. Any pulls over threshold (by default a difference of +/- 3 sigma) will be logged in the output file, as will the overall average pull.
+If you have provided a reference file, this will also make a plot of the pull between the sample and the scaled reference. The chi-squared per degree of freedom will be calculated and written to an output text file. Any pulls over threshold (by default a difference of +/- 3 sigma) will be logged in the output file, as will the overall average pull. These will be calculated by plotting the individual pulls in each cell and fitting to a Gaussian (that plot will also be saved).
 
-Note that the pulls are currently incorrect for averaged branches, as there is not currently a facility to set the uncertainties correctly for non-counting branches.
+The uncertainties on averaged branches are taken by finding the error on the mean. In the case that there is only 1 entry (or no entries), there will be insufficient data to calculate a pull or chi squared. The number of degrees of freedom for the chi squared will be decreased accordingly.
