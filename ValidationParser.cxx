@@ -20,14 +20,16 @@ int main(int argc, char **argv)
   gErrorIgnoreLevel = kWarning;
   if (argc < 2)
   {
-    cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
+    cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)> -o <output directory (optional)> -t <temp directory (optional)>"<<endl;
     return -1;
   }
   // This bit is kept for compatibility with old version that would take just a root file name and a config file name
   string dataFileInput="";
   string referenceFileInput="";
   string configFileInput="";
-  if (argc == 2)
+  string tempDirInput="";
+  string plotDirInput="";
+  if (argc == 2 && argv[1][0]!= '-')
   {
     dataFileInput = argv[1];
   }
@@ -39,7 +41,7 @@ int main(int argc, char **argv)
   else
   {
     int flag=0;
-    while ((flag = getopt (argc, argv, "i:r:c:")) != -1)
+    while ((flag = getopt (argc, argv, "i:r:c:t:o:")) != -1)
     {
       switch (flag)
       {
@@ -52,8 +54,14 @@ int main(int argc, char **argv)
         case 'c':
           configFileInput = optarg;
           break;
+        case 'o':
+          plotDirInput = optarg;
+          break;
+        case 't':
+          tempDirInput = optarg;
+          break;
         case '?':
-          if (optopt == 'i' || optopt == 'r' || optopt == 'c')
+          if (optopt == 'i' || optopt == 'r' || optopt == 'c' || optopt == 't' || optopt == 'o' )
             fprintf (stderr, "Option -%c requires an argument.\n", optopt);
           else if (isprint (optopt))
             fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -61,6 +69,7 @@ int main(int argc, char **argv)
             fprintf (stderr,
                      "Unknown option character `\\x%x'.\n",
                      optopt);
+          cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)> -o <output directory (optional)> -t <temp directory (optional)>"<<endl;
           return 1;
         default:
           abort ();
@@ -74,7 +83,7 @@ int main(int argc, char **argv)
     cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
     return -1;
   }
-  ParseRootFile(dataFileInput,configFileInput,referenceFileInput);
+  ParseRootFile(dataFileInput,configFileInput,referenceFileInput,tempDirInput,plotDirInput);
   return 0;
 }
 
@@ -84,7 +93,7 @@ int main(int argc, char **argv)
  *  rootFileName: path to the ROOT file with SuperNEMO validation data
  *  configFileName: optional to specify how to plot certain variables
  */
-void ParseRootFile(string rootFileName, string configFileName, string refFileName)
+void ParseRootFile(string rootFileName, string configFileName, string refFileName, string tempDirName, string plotDirName)
 {
 
   // Check the input root file can be opened and contains a tree with the right name
@@ -147,22 +156,42 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   }
 
   // Make a directory to put the plots in
-  string rootFileNameNoPath=rootFileName;
-  try{
-    rootFileNameNoPath=rootFileName.substr(rootFileName.find_last_of("/")+1);
-  }
-  catch (exception e)
+  if (plotDirName.length() > 0)
   {
-    rootFileNameNoPath=rootFileName;
+    plotdir=plotDirName;
   }
-  plotdir = "plots"+rootFileNameNoPath;
+  else
+  {
+    string rootFileNameNoPath=rootFileName;
+    try{
+      rootFileNameNoPath=rootFileName.substr(rootFileName.find_last_of("/")+1);
+    }
+    catch (exception e)
+    {
+      rootFileNameNoPath=rootFileName;
+    }
+    plotdir = "plots_"+rootFileNameNoPath.substr(0,rootFileNameNoPath.length()-5);
+  }
+
   boost::filesystem::path dir(plotdir.c_str());
-  if(boost::filesystem::create_directory(dir))
+  if(boost::filesystem::create_directories(dir))
   {
     cout<< "Directory Created: "<<plotdir<<std::endl;
   }
+  
+  // If there is a temp directory specified, make that too
+  if (tempDirName.length() > 0)
+  {
+    boost::filesystem::path dir(tempDirName.c_str());
+    if(boost::filesystem::create_directories(dir))
+    {
+      cout<< "Directory Created: "<<tempDirName<<std::endl;
+    }
+  }
+  else tempDirName=plotdir; // If no temp directory is specified, we will use the output directory for temp files
+  
   // In the plots directory, make an output ROOT file for the histograms
-  TFile *outputFile=new TFile((plotdir+"/ValidationHistograms.root").c_str(),"RECREATE");
+  TFile *outputFile=new TFile((tempDirName+"/TempHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
   
   if (hasValidReference)
@@ -191,7 +220,40 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   if (configFile.is_open()) configFile.close();
   outputFile->Close();
   if (textOut.is_open())  textOut.close();
+  
+  // Fix ROOT problem by copying all histograms from the output file to another file
+  // If your input ntuple files are too big, ROOT will write them to the output file
+  // We don't want that, but we can't avoid it so instead, we will copy the good
+  // stuff to a new file and then delete the old stuff. Sigh.
+  MoveHistograms(tempDirName+"/TempHistograms.root" , plotdir+"/ValidationHistograms.root");
   return;
+}
+
+// Hack to move all the histograms from one ROOT file to another, while not moving
+// any TTrees. Then delete the old file. It fixes a "feature" of ROOT which means that it will
+// write the input tuples to the output file if they are too big to hold in memory.
+// Not ideal.
+void MoveHistograms(string fromFile, string toFile)
+{
+  TFile *fIn = new TFile(fromFile.c_str());
+  TFile *fOut = new TFile(toFile.c_str(),"RECREATE");
+  // Loop through the input file and if it's a histogram, write it to the output file
+  TList* list = fIn->GetListOfKeys() ;
+  TIter next(list) ;
+  TKey* key ;
+  TObject* obj ;
+  
+  while (( key = (TKey*)next() )) {
+    obj = key->ReadObj() ;
+    if ( obj->InheritsFrom("TH2") || obj->InheritsFrom("TH1"))
+    {
+      obj->Write("",TObject::kOverwrite);
+    }
+  }
+  fOut->cd();
+  fOut->Close();
+  fIn->Close();
+  remove(fromFile.c_str());
 }
 
 /**
