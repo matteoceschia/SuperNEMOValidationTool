@@ -97,3 +97,4 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title="");
 void OverlayWhiteForNaN(TH2D *hist);
 double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage);
 double  PrintPlotOfPulls(TH1D *h1Pulls, int pullCells, string title);
+void MoveHistograms(string fromFile, string toFile);

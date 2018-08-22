@@ -162,7 +162,7 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
     cout<< "Directory Created: "<<plotdir<<std::endl;
   }
   // In the plots directory, make an output ROOT file for the histograms
-  TFile *outputFile=new TFile((plotdir+"/ValidationHistograms.root").c_str(),"RECREATE");
+  TFile *outputFile=new TFile((plotdir+"/TempHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
   
   if (hasValidReference)
@@ -191,7 +191,40 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   if (configFile.is_open()) configFile.close();
   outputFile->Close();
   if (textOut.is_open())  textOut.close();
+  
+  // Fix ROOT problem by copying all histograms from the output file to another file
+  // If your input ntuple files are too big, ROOT will write them to the output file
+  // We don't want that, but we can't avoid it so instead, we will copy the good
+  // stuff to a new file and then delete the old stuff. Sigh.
+  MoveHistograms(plotdir+"/TempHistograms.root" , plotdir+"/ValidationHistograms.root");
   return;
+}
+
+// Hack to move all the histograms from one ROOT file to another, while not moving
+// any TTrees. Then delete the old file. It fixes a "feature" of ROOT which means that it will
+// write the input tuples to the output file if they are too big to hold in memory.
+// Not ideal.
+void MoveHistograms(string fromFile, string toFile)
+{
+  TFile *fIn = new TFile(fromFile.c_str());
+  TFile *fOut = new TFile(toFile.c_str(),"RECREATE");
+  // Loop through the input file and if it's a histogram, write it to the output file
+  TList* list = fIn->GetListOfKeys() ;
+  TIter next(list) ;
+  TKey* key ;
+  TObject* obj ;
+  
+  while (( key = (TKey*)next() )) {
+    obj = key->ReadObj() ;
+    if ( obj->InheritsFrom("TH2") || obj->InheritsFrom("TH1"))
+    {
+      obj->Write("",TObject::kOverwrite);
+    }
+  }
+  fOut->cd();
+  fOut->Close();
+  fIn->Close();
+  remove(fromFile.c_str());
 }
 
 /**
