@@ -3,7 +3,7 @@
 Last updated July 20, 2018 by Cheryl Patrick
 
 ## Purpose
-This tool takes a ROOT ntuple file in which branches have a specific naming convention and format, and will produce diagnostic plots of the data in the file. The plots are automatically generated if the ntuple has been properly generated (with the correct naming and format). The plots will be stored in a subdirectory of the directory that you run from; this directory will be named `plots` followed by the name of the input root file.
+This tool takes a ROOT ntuple file in which branches have a specific naming convention and format, and will produce diagnostic plots and statistics of the data in the file. The plots are automatically generated if the ntuple has been properly generated (with the correct naming and format). It can also compare to a reference.
 
 The tool is currently able to:
 - Make one-dimensional histograms of a variable (e.g. total energy in an event, number of tracks in an event)
@@ -16,16 +16,20 @@ As you define the tuple yourself, it can include whatever information you like, 
 
 If you wish, you can use a configuration file to set some styling parameters for the plots, for example: a title, number of bins, maximum value. If no config file is provided or if there is no entry for a given branch, the tool will attempt to choose sensible defaults.
 
-As well as storing images of the plots of each variable, the histograms are written to a ROOT file (ValidationHistograms.root), which you can use for further processing.
+As well as storing images of the plots of each variable, the histograms are written to a ROOT file (ValidationHistograms.root), which you can use for further processing. Statistics are written to a text file (ValidationResults.txt)
+
+If you give it a reference ROOT file, the tool will compare the branches with the same-named branch in the reference, producing ratio or pull plots, and writing goodness of fit statistics to a file.
 
 ## Usage
-`./ValidationParser -i <data ROOT file> -r <reference ROOT file to compare to> -c <config file (optional)> -t <temp directory (optional)>`
+`./ValidationParser -i <data ROOT file> -r <reference ROOT file to compare to> -c <config file (optional)> -o <output directory (optional)> -t <temp directory (optional)>`
 
 The root file should contain branches that you want to histogram. The naming convention is important and will be explained below. See the example ReconstructionValidationModule for details of how to make an ntuple with correctly named/formatted branches.
 
 The configuration file (which will also be explained below) is optional, and allows you to set a title for the plots.
 
 If a reference file is given it will (eventually) be used to make comparison and ratio plots, and calculate goodness of fit.
+
+Plots images, histograms and a text file of results will be saved to the output directory (which will be created if it doesn't exist). If you don't specify an output folder, a directory will be created beneath the directory you are in when you run the tool. It will be neamed `plots_` followed by the name of your input ROOT file (minus the `.root` extension).
 
 If your sample or reference files are large, the tool will need to write a temporary file (up to the size of those ROOT files) while it is working. You can specify a temp directory for those; if you don't, it will just put them into the same directory as your output plots. The temp file will be deleted when the tool completes.
 

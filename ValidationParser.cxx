@@ -20,7 +20,7 @@ int main(int argc, char **argv)
   gErrorIgnoreLevel = kWarning;
   if (argc < 2)
   {
-    cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
+    cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)> -o <output directory (optional)> -t <temp directory (optional)>"<<endl;
     return -1;
   }
   // This bit is kept for compatibility with old version that would take just a root file name and a config file name
@@ -28,7 +28,8 @@ int main(int argc, char **argv)
   string referenceFileInput="";
   string configFileInput="";
   string tempDirInput="";
-  if (argc == 2)
+  string plotDirInput="";
+  if (argc == 2 && argv[1][0]!= '-')
   {
     dataFileInput = argv[1];
   }
@@ -40,7 +41,7 @@ int main(int argc, char **argv)
   else
   {
     int flag=0;
-    while ((flag = getopt (argc, argv, "i:r:c:t:")) != -1)
+    while ((flag = getopt (argc, argv, "i:r:c:t:o:")) != -1)
     {
       switch (flag)
       {
@@ -53,11 +54,14 @@ int main(int argc, char **argv)
         case 'c':
           configFileInput = optarg;
           break;
+        case 'o':
+          plotDirInput = optarg;
+          break;
         case 't':
           tempDirInput = optarg;
           break;
         case '?':
-          if (optopt == 'i' || optopt == 'r' || optopt == 'c')
+          if (optopt == 'i' || optopt == 'r' || optopt == 'c' || optopt == 't' || optopt == 'o' )
             fprintf (stderr, "Option -%c requires an argument.\n", optopt);
           else if (isprint (optopt))
             fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -65,6 +69,7 @@ int main(int argc, char **argv)
             fprintf (stderr,
                      "Unknown option character `\\x%x'.\n",
                      optopt);
+          cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)> -o <output directory (optional)> -t <temp directory (optional)>"<<endl;
           return 1;
         default:
           abort ();
@@ -78,7 +83,7 @@ int main(int argc, char **argv)
     cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)>"<<endl;
     return -1;
   }
-  ParseRootFile(dataFileInput,configFileInput,referenceFileInput,tempDirInput);
+  ParseRootFile(dataFileInput,configFileInput,referenceFileInput,tempDirInput,plotDirInput);
   return 0;
 }
 
@@ -88,7 +93,7 @@ int main(int argc, char **argv)
  *  rootFileName: path to the ROOT file with SuperNEMO validation data
  *  configFileName: optional to specify how to plot certain variables
  */
-void ParseRootFile(string rootFileName, string configFileName, string refFileName, string tempDirName)
+void ParseRootFile(string rootFileName, string configFileName, string refFileName, string tempDirName, string plotDirName)
 {
 
   // Check the input root file can be opened and contains a tree with the right name
@@ -151,17 +156,25 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   }
 
   // Make a directory to put the plots in
-  string rootFileNameNoPath=rootFileName;
-  try{
-    rootFileNameNoPath=rootFileName.substr(rootFileName.find_last_of("/")+1);
-  }
-  catch (exception e)
+  if (plotDirName.length() > 0)
   {
-    rootFileNameNoPath=rootFileName;
+    plotdir=plotDirName;
   }
-  plotdir = "plots"+rootFileNameNoPath;
+  else
+  {
+    string rootFileNameNoPath=rootFileName;
+    try{
+      rootFileNameNoPath=rootFileName.substr(rootFileName.find_last_of("/")+1);
+    }
+    catch (exception e)
+    {
+      rootFileNameNoPath=rootFileName;
+    }
+    plotdir = "plots_"+rootFileNameNoPath.substr(0,rootFileNameNoPath.length()-5);
+  }
+
   boost::filesystem::path dir(plotdir.c_str());
-  if(boost::filesystem::create_directory(dir))
+  if(boost::filesystem::create_directories(dir))
   {
     cout<< "Directory Created: "<<plotdir<<std::endl;
   }
@@ -170,7 +183,7 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   if (tempDirName.length() > 0)
   {
     boost::filesystem::path dir(tempDirName.c_str());
-    if(boost::filesystem::create_directory(dir))
+    if(boost::filesystem::create_directories(dir))
     {
       cout<< "Directory Created: "<<tempDirName<<std::endl;
     }

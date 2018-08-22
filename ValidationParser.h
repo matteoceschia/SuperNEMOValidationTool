@@ -74,7 +74,7 @@ int CALO_XHI[6] = {0,MAINWALL_WIDTH,XWALL_DEPTH/2,XWALL_DEPTH/2,VETO_WIDTH,VETO_
 int CALO_YBINS[6] = {MAINWALL_HEIGHT,MAINWALL_HEIGHT,XWALL_HEIGHT,XWALL_HEIGHT,VETO_DEPTH,VETO_DEPTH}; // They are all zero to nbins in the y direction
 
 int main(int argc, char **argv);
-void ParseRootFile(string rootFileName, string configFileName="", string refFileName="", string tempDirName="");
+void ParseRootFile(string rootFileName, string configFileName="", string refFileName="", string tempDirName="", string plotDirName="");
 bool PlotVariable(string branchName);
 map<string,string> LoadConfig(ifstream& configFile);
 string GetBitBeforeComma(string& input);
