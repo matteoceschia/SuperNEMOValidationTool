@@ -278,7 +278,7 @@ bool PlotVariable(string branchName)
   {
     case 'h':
     {
-     Plot1DHistogram(branchName);
+      Plot1DHistogram(branchName);
       break;
     }
     case 't':
@@ -647,6 +647,22 @@ void PlotCaloMap(string branchName)
 // any problems
 double CheckCaloPulls(vector<TH2D*> hPulls, string title)
 {
+  bool foundPull=false;
+  for (int i=0;i<hPulls.size();i++)
+  {
+    // Check whether the distributions are identical (all pulls 0)
+
+    if ( (hPulls.at(i)->GetBinContent(hPulls.at(i)->GetMaximumBin())) != 0 || (hPulls.at(i)->GetBinContent(hPulls.at(i)->GetMinimumBin())) != 0)
+    {
+      foundPull=true;
+    }
+  }
+  if (!foundPull)
+  { // If the plots are the same there is no need to make a plot of all pulls
+    cout<<"Pull is zero - plots are identical"<<endl;
+    textOut<<"Pull is zero - plots are identical"<<endl;
+    return 0;
+  }
   string firstName=hPulls.at(0)->GetName();
   int pos=firstName.find_last_of('_');
   string hPullName="allpulls"+firstName.substr(8,pos-8);
@@ -727,6 +743,7 @@ double  PrintPlotOfPulls(TH1D *h1Pulls, int pullCells, string title)
   // Save the plot of pulls
   h1Pulls->GetXaxis()->SetTitle("Pull");
   h1Pulls->GetYaxis()->SetTitle("Frequency");
+  
   
   h1Pulls->Fit("gaus","LQ");
   TF1 *fit = (TF1*)h1Pulls->GetFunction("gaus");
@@ -1229,8 +1246,18 @@ double CheckTrackerPull(TH2D *hPull, string title)
     textOut<<"Layers are numbered 1 to 9, with 1 nearest the foil. Rows count from mountain (1) to tunnel ("<<MAX_TRACKER_ROWS<<")."<<endl;
   }
   
-  
-  PrintPlotOfPulls(h1Pulls,pullCells,title);
+  // Check whether the distributions are identical (all pulls 0)
+
+  if ( (hPull->GetBinContent(hPull->GetMaximumBin())) == 0 && (hPull->GetBinContent(hPull->GetMinimumBin())) == 0)
+  {
+    cout<<"Pull is zero - plots are identical"<<endl;
+    textOut<<"Pull is zero - plots are identical"<<endl;
+  }
+  else
+  {
+    // If not, plot all the pulls and fit to a Gaussian
+    PrintPlotOfPulls(h1Pulls,pullCells,title);
+  }
   return totalPull;
 }
 
