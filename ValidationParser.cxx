@@ -41,10 +41,15 @@ int main(int argc, char **argv)
   else
   {
     int flag=0;
-    while ((flag = getopt (argc, argv, "i:r:c:t:o:")) != -1)
+    while ((flag = getopt (argc, argv, "h-i:r:c:t:o:")) != -1)
     {
       switch (flag)
       {
+        case 'h':
+        case '-':
+          cout<<"Usage: "<<argv[0]<<" -i <data ROOT file> -r <reference ROOT file (optional)> -c <config file (optional)> -o <output directory (optional)> -t <temp directory (optional)>"<<endl;
+          return 1;
+          break;
         case 'i':
           dataFileInput = optarg;
           break;
