@@ -135,15 +135,24 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   // Check for a reference file
   
   TFile *refFile;
-  
-  refFile = new TFile(refFileName.c_str());
-  if (refFile->IsZombie())
+  if (refFileName.length() > 0)
   {
-    cout<<"WARNING: No valid reference ROOT file given. To generate comparison plots, provide a valid reference ROOT file.";
-    if (refFileName.length()>0) cout<<" Bad ROOT file: "<<refFileName;
-    cout <<endl;
+    
+    refFile = new TFile(refFileName.c_str());
+    if (refFile->IsZombie())
+    {
+      cout<<"WARNING: No valid reference ROOT file given. To generate comparison plots, provide a valid reference ROOT file.";
+      if (refFileName.length()>0) cout<<" Bad ROOT file: "<<refFileName;
+      cout <<endl;
+      hasValidReference = false;
+    }
+  }
+  else
+  {
+    cout<<"WARNING: No reference ROOT file given. To generate comparison plots, provide a valid reference ROOT file."<<endl;
     hasValidReference = false;
   }
+
   if (hasValidReference)
   {
     reftree = (TTree*) refFile->Get(treeName.c_str()); // Name is in the .h file for now
