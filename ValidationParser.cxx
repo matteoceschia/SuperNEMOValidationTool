@@ -135,15 +135,24 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   // Check for a reference file
   
   TFile *refFile;
-  
-  refFile = new TFile(refFileName.c_str());
-  if (refFile->IsZombie())
+  if (refFileName.length() > 0)
   {
-    cout<<"WARNING: No valid reference ROOT file given. To generate comparison plots, provide a valid reference ROOT file.";
-    if (refFileName.length()>0) cout<<" Bad ROOT file: "<<refFileName;
-    cout <<endl;
+    
+    refFile = new TFile(refFileName.c_str());
+    if (refFile->IsZombie())
+    {
+      cout<<"WARNING: No valid reference ROOT file given. To generate comparison plots, provide a valid reference ROOT file.";
+      if (refFileName.length()>0) cout<<" Bad ROOT file: "<<refFileName;
+      cout <<endl;
+      hasValidReference = false;
+    }
+  }
+  else
+  {
+    cout<<"WARNING: No reference ROOT file given. To generate comparison plots, provide a valid reference ROOT file."<<endl;
     hasValidReference = false;
   }
+
   if (hasValidReference)
   {
     reftree = (TTree*) refFile->Get(treeName.c_str()); // Name is in the .h file for now
@@ -680,7 +689,7 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
       {
         // Pull is sample - ref / total uncertainty
         double pull=hPull->GetBinContent(x,y) ;
-        if (!isnan(pull) && !isinf(pull))
+        if (!std::isnan(pull) && !std::isinf(pull))
         {
           totalPull+=pull;
           pullCells++;
@@ -688,7 +697,7 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
         }
         
         // Report any cells where sample and reference are too different
-        if (TMath::Abs(pull) > REPORT_PULLS_OVER ||  isnan(pull) )
+        if (TMath::Abs(pull) > REPORT_PULLS_OVER ||  std::isnan(pull) )
         {
           string reportString;
           // Unfortunately the numbering scheme maps differently to the bin numbers for each wall
@@ -724,8 +733,8 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
               break;
               reportString=Form("ERROR: pull found for unknown calorimeter wall %d: this is a bug!",i);
           }
-          if (isnan(pull)) reportString += ": not enough data to calculate pull";
-          else if (isinf(pull)) reportString += ": not enough data to calculate pull";
+          if (std::isnan(pull)) reportString += ": not enough data to calculate pull";
+          else if (std::isinf(pull)) reportString += ": not enough data to calculate pull";
           else reportString += Form(": pull = %.2f",pull);
           cout<<reportString<<endl;
           textOut<<reportString<<endl;
@@ -1220,7 +1229,7 @@ double CheckTrackerPull(TH2D *hPull, string title)
     {
       // Pull is sample - ref / total uncertainty
       double pull=hPull->GetBinContent(x,y) ;
-      if (!isnan(pull))
+      if (!std::isnan(pull))
       {
         totalPull+=pull;
         pullCells++;
@@ -1313,7 +1322,7 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
         {
           yValue=TMath::Abs(trackerHits->at(i)/100);
           xValue=trackerHits->at(i)%100;
-          if (isAverage && !isnan(toAverageTrk->at(i)))
+          if (isAverage && !std::isnan(toAverageTrk->at(i)))
           {
             hAve->Fill(xValue,yValue,toAverageTrk->at(i)); // Ignore the uncertainties
             hQuantitySquared->Fill(xValue,yValue,pow(toAverageTrk->at(i),2)); // We will use this to calculate uncertainty
@@ -1445,7 +1454,7 @@ void OverlayWhiteForNaN(TH2D *hist)
   {
     for (int y=1;y<=hist->GetNbinsY();y++)
     {
-      if (isnan(hist->GetBinContent(x,y)))
+      if (std::isnan(hist->GetBinContent(x,y)))
       {
         Double_t x1 = hist->GetXaxis()->GetBinLowEdge(x);
         Double_t x2 = hist->GetXaxis()->GetBinUpEdge(x);
@@ -1642,7 +1651,7 @@ double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage)
       
       // We won't count the bin (or increase the degrees of freedom) if we don't have enough info
       // This is the case if either uncertainty is zero or  if a value or uncertainty is not a number
-      if ((isnan(val1) || isnan(val2) || isnan(err1) || isnan(err2)))
+      if ((std::isnan(val1) || std::isnan(val2) || std::isnan(err1) || std::isnan(err2)))
       {
        // cout<<"Insufficient information for bin  ("<<x<<","<<y<<"): do not include in chi square calculation"<<endl;
         continue;

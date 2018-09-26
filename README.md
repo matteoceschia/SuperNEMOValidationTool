@@ -16,9 +16,9 @@ As you define the tuple yourself, it can include whatever information you like, 
 
 If you wish, you can use a configuration file to set some styling parameters for the plots, for example: a title, number of bins, maximum value. If no config file is provided or if there is no entry for a given branch, the tool will attempt to choose sensible defaults.
 
-As well as storing images of the plots of each variable, the histograms are written to a ROOT file (ValidationHistograms.root), which you can use for further processing. Statistics are written to a text file (ValidationResults.txt)
+As well as storing images of the plots of each variable, the histograms are written to a ROOT file (ValidationHistograms.root), which you can use for further processing.
 
-If you give it a reference ROOT file, the tool will compare the branches with the same-named branch in the reference, producing ratio or pull plots, and writing goodness of fit statistics to a file.
+If you give it a reference ROOT file, the tool will compare the branches with the same-named branch in the reference, producing ratio or pull plots, and writing goodness of fit statistics to a text file (ValidationResults.txt).
 
 ## Usage
 `./ValidationParser -i <data ROOT file> -r <reference ROOT file to compare to> -c <config file (optional)> -o <output directory (optional)> -t <temp directory (optional)>`
