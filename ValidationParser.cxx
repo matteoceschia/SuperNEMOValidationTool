@@ -136,13 +136,13 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
     cout<<"Using config file "<<configFileName<<endl;
     configParams=LoadConfig(configFile);
   }
-  
+
   // Check for a reference file
-  
+
   TFile *refFile;
   if (refFileName.length() > 0)
   {
-    
+
     refFile = new TFile(refFileName.c_str());
     if (refFile->IsZombie())
     {
@@ -192,7 +192,7 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
   {
     cout<< "Directory Created: "<<plotdir<<std::endl;
   }
-  
+
   // If there is a temp directory specified, make that too
   if (tempDirName.length() > 0)
   {
@@ -203,11 +203,11 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
     }
   }
   else tempDirName=plotdir; // If no temp directory is specified, we will use the output directory for temp files
-  
+
   // In the plots directory, make an output ROOT file for the histograms
   TFile *outputFile=new TFile((tempDirName+"/TempHistograms.root").c_str(),"RECREATE");
   outputFile->cd();
-  
+
   if (hasValidReference)
   {
     // Open the output text file
@@ -217,24 +217,24 @@ void ParseRootFile(string rootFileName, string configFileName, string refFileNam
     textOut<<"Compared with "<<refFileName<<" ("<<reftree->GetEntries() <<" entries)"<<endl;
     textOut<<"SHA-256 hash: "<<FirstWordOf(exec(("shasum -a 256 "+refFileName).c_str()))<<endl;
     textOut<<endl;
-    
+
   }
 
   // Get a list of all the branches in the main tree
   TObjArray* branches = tree->GetListOfBranches();
   TIter next(branches);
   TBranch *branch;
-  
+
   // Loop the branches and decide how to treat them based on the first character of the name
   while( (branch=(TBranch *)next() )){
     string branchName=branch->GetName();
     PlotVariable(branchName);
   }
-  
+
   if (configFile.is_open()) configFile.close();
   outputFile->Close();
   if (textOut.is_open())  textOut.close();
-  
+
   // Fix ROOT problem by copying all histograms from the output file to another file
   // If your input ntuple files are too big, ROOT will write them to the output file
   // We don't want that, but we can't avoid it so instead, we will copy the good
@@ -256,7 +256,7 @@ void MoveHistograms(string fromFile, string toFile)
   TIter next(list) ;
   TKey* key ;
   TObject* obj ;
-  
+
   while (( key = (TKey*)next() )) {
     obj = key->ReadObj() ;
     if ( obj->InheritsFrom("TH2") || obj->InheritsFrom("TH1"))
@@ -325,7 +325,7 @@ map<string,string> LoadConfig(ifstream& configFile)
 {
   map<string,string> configLookup;
   string thisLine;
-  
+
   while (configFile)
   {
     getline(configFile, thisLine);
@@ -349,14 +349,14 @@ void Plot1DHistogram(string branchName)
   double highLimit=notSetVal;
   string title="";
   bool hasReferenceBranch=hasValidReference;
-  
+
   // Check whether the reference file contains this branch
   if (hasValidReference)
   {
     hasReferenceBranch=reftree->GetBranchStatus(branchName.c_str());
     if (!hasReferenceBranch) cout<<"WARNING: branch "<<branchName<<" not found in reference file. No comparison plots will be made for this branch"<<endl;
   }
-  
+
   // Read the config information
   if (config.length()>0)
   {
@@ -374,7 +374,7 @@ void Plot1DHistogram(string branchName)
     {
       nbins=0;
     }
-    
+
     // Low bin limit
     try
     {
@@ -385,7 +385,7 @@ void Plot1DHistogram(string branchName)
     {
       lowLimit=0;
     }
-    
+
     // High bin limit
     try
     {
@@ -405,7 +405,7 @@ void Plot1DHistogram(string branchName)
   TCanvas *c = new TCanvas (("plot_"+branchName).c_str(),("plot_"+branchName).c_str(),900,600);
   TH1D *h;
   tree->Draw(branchName.c_str());
-  
+
   if (highLimit == notSetVal)
   {
     // Use the default limits
@@ -424,7 +424,7 @@ void Plot1DHistogram(string branchName)
     }
     else if (datatype== kInt_t || datatype== kUInt_t)
     {
-      
+
       highLimit +=1;
       if (highLimit <=100) nbins = (int) highLimit;
       else nbins = 100;
@@ -444,7 +444,7 @@ void Plot1DHistogram(string branchName)
   tree->Draw((branchName + ">> plt_"+branchName).c_str());
   h->Write("",TObject::kOverwrite);
   h->Draw("HIST");
-  
+
   h->Draw("E SAME");
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
   if (hasReferenceBranch)
@@ -452,22 +452,22 @@ void Plot1DHistogram(string branchName)
     TCanvas  *comp_canv= new TCanvas(("compare_"+branchName).c_str(),("compare_"+branchName).c_str(),900,900);
     TPad *p_comp = new TPad("p_comp",
                             "",0.0,0.4,1,1,0);
-    
+
     TPad *p_ratio = new TPad("p_ratio",
                             "",0.0,0.0,1,0.4,0);
     p_comp->Draw();
     p_ratio->Draw();
-    
+
     p_comp->cd();
     // Make the reference plot with the same binning
     TH1D *href = new TH1D(("ref_"+branchName).c_str(),title.c_str(),nbins,lowLimit,highLimit);
     if( href->GetSumw2N() == 0 )href->Sumw2();
     reftree->Draw((branchName + ">> ref_"+branchName).c_str());
-    
+
     // Normalise reference number of events to data
     Double_t scale = (double)tree->GetEntries()/(double)reftree->GetEntries();
     href->Scale(scale);
-    
+
     // Save a plot with both on the same axes
     double maxy = h->GetMaximum()>href->GetMaximum()?h->GetMaximum()*1.1:href->GetMaximum()*1.1;
     h->GetYaxis()->SetRangeUser(0,maxy);
@@ -480,7 +480,7 @@ void Plot1DHistogram(string branchName)
     h->SetLineWidth(1);
     h->SetLineStyle(1);
     h->Draw("E");
-    
+
     // Draw the error bars on the reference
     href->SetFillColor(REF_FILL_COLOR);
     href->SetFillStyle(REF_FILL_STYLE);
@@ -500,7 +500,7 @@ void Plot1DHistogram(string branchName)
     legend->AddEntry(h, "Sample", "lep");
     legend->AddEntry(href,"Reference", "fl");
     legend->Draw();
-    
+
     // Calculate some stats
     // Kolmogorov-Smirnov goodness of fit
     Double_t ks = h->KolmogorovTest(href);
@@ -509,7 +509,7 @@ void Plot1DHistogram(string branchName)
     Double_t p_value = ChiSquared(h, href, chisq, ndf, false);
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
-    
+
     // Write to output file
     textOut<<branchName<<":"<<endl;
     textOut<<"KS score: "<<ks<<endl;
@@ -534,13 +534,13 @@ void Plot1DHistogram(string branchName)
     WriteLabel(0.6,0.8, Form("K-S score (binned): %.2f",ks),0.04);
     WriteLabel(0.6,0.72, Form("#chi^{2}/NDF: %.1f/%d = %.1f",chisq,ndf,chisq/(double)ndf),0.04);
     WriteLabel(0.6,0.64, Form("(p-value %.2f)",p_value),0.04);
-    
+
     TLine *line=new TLine(c->GetUxmin(),1.0,c->GetUxmax(),1.0);
     line->SetLineColor(kRed);
     line->Draw();
 
     comp_canv->SaveAs((plotdir+"/compare_"+branchName+".png").c_str());
-    
+
     textOut<<endl;
     delete href;
     delete ratio_hist;
@@ -563,14 +563,14 @@ void Plot1DHistogram(string branchName)
  */
 void PlotCaloMap(string branchName)
 {
-  
+
   string config="";
-  
+
   string fullBranchName=branchName;//This is a combo of name and parent for average branches
-  
+
   // is it an average?
   string mapBranch=branchName;
-  
+
   bool isAverage=false;
   if (branchName[1]=='m')
   {
@@ -587,7 +587,7 @@ void PlotCaloMap(string branchName)
   }
 
   config=configParams[branchName]; // get the config loaded from the file if there is one
-  
+
   string title="";
   // Load the title from the config file
   if (config.length()>0)
@@ -600,10 +600,10 @@ void PlotCaloMap(string branchName)
   {
     title = BranchNameToEnglish(branchName);
   }
-  
+
   vector<TH2D*> hists = MakeCaloPlotSet(fullBranchName, branchName, title, false, isAverage, mapBranch);
   PrintCaloPlots(branchName,title,hists);
-  
+
   // Can we do a comparison to the reference for this plot?
   if (!hasValidReference) return;
   if (!reftree->GetBranchStatus(fullBranchName.c_str()))
@@ -616,12 +616,12 @@ void PlotCaloMap(string branchName)
     cout<<"WARNING: map branch "<<mapBranch<<" not found in reference file. No comparison plots can be made for the branch "<<branchName<<endl;
     return;
   }
-  
+
   // Compare to reference now that we have checked that we have one.
   vector<TH2D*> refHists = MakeCaloPlotSet(fullBranchName, branchName, title, true, isAverage, mapBranch);
 
   PrintCaloPlots("ref_"+branchName,title,refHists);
-  
+
 
   // Calculate some stats
   // Don't know how to make a Kolmogorov calculation for this set of 6, but we can do a chi-square and look at the pull...
@@ -637,22 +637,22 @@ void PlotCaloMap(string branchName)
     chisq += thisChisq;
     ndf += thisNdf;
   }
-  
+
   Double_t prob = TMath::Prob(chisq, ndf); // Get it from the combined chi square
   cout<<"P-value: "<<prob<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
-  
+
   // Write to output file
   textOut<<branchName<<":"<<endl;
   textOut<<"P-value: "<<prob<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
-  
+
   // Pull plots
   vector<TH2D*> pullHists = MakeCaloPullPlots(hists,refHists);
   gStyle->SetPalette(PULL_PALETTE);
-  
+
   PrintCaloPlots("pull_"+branchName,"Pull: "+title,pullHists);
   CheckCaloPulls(pullHists,title);
   gStyle->SetPalette(PALETTE);
-  
+
   textOut<<endl;
   cout<<endl;
 }
@@ -680,9 +680,9 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
   string firstName=hPulls.at(0)->GetName();
   int pos=firstName.find_last_of('_');
   string hPullName="allpulls"+firstName.substr(8,pos-8);
-  
+
   TH1D *h1Pulls = new TH1D(hPullName.c_str(),(title+" pulls").c_str(),100,-10,10);
-  
+
   double totalPull=0;
   int pullCells=0;
   for (int i=0;i<hPulls.size();i++)
@@ -700,7 +700,7 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
           pullCells++;
           h1Pulls->Fill(pull);
         }
-        
+
         // Report any cells where sample and reference are too different
         if (TMath::Abs(pull) > REPORT_PULLS_OVER ||  std::isnan(pull) )
         {
@@ -744,7 +744,7 @@ double CheckCaloPulls(vector<TH2D*> hPulls, string title)
           cout<<reportString<<endl;
           textOut<<reportString<<endl;
         }
-        
+
       }
     }
   }
@@ -757,15 +757,15 @@ double  PrintPlotOfPulls(TH1D *h1Pulls, int pullCells, string title)
   // Save the plot of pulls
   h1Pulls->GetXaxis()->SetTitle("Pull");
   h1Pulls->GetYaxis()->SetTitle("Frequency");
-  
-  
+
+
   h1Pulls->Fit("gaus","LQ");
   TF1 *fit = (TF1*)h1Pulls->GetFunction("gaus");
   double mean=fit->GetParameter(1);
   double rms=fit->GetParameter(2);
   double meanerr=fit->GetParError(1);
   double rmserr=fit->GetParError(2);
-  
+
   // Report fitted mean pulls
   textOut<<"Mean pull:"<<mean<<" +/- "<<meanerr<<" for "<<pullCells<<" modules with data. ";
   cout<<"Mean pull:"<<mean<<" +/- "<<meanerr<<" for "<<pullCells<<" modules with data."<<endl;
@@ -773,15 +773,15 @@ double  PrintPlotOfPulls(TH1D *h1Pulls, int pullCells, string title)
   else textOut<<"Note: positive pull indicates sample excess."<<endl;
   cout<<"RMS of pulls "<<rms<<" +/- "<<rmserr<<endl;
   textOut<<"RMS of pulls "<<rms<<" +/- "<<rmserr<<endl;
-  
-  
+
+
   h1Pulls->Write("",TObject::kOverwrite);
   TCanvas *cPull = new TCanvas("cPull","cPull",900,600);
   h1Pulls->Draw("HIST");
   fit->SetLineColor(kRed);
   fit->SetLineWidth(2);
   fit->Draw("SAME");
-  
+
   WriteLabel(.6,.75,Form ("Mean pull %.2f #pm %.2f",mean,meanerr),0.03);
   WriteLabel(.6,.7,Form ("RMS  %.2f #pm %.2f",rms,rmserr),0.03);
   WriteLabel(.15,.84,title+" pulls",0.04);
@@ -808,13 +808,13 @@ vector<TH2D*>MakeCaloPullPlots(vector<TH2D*> vSample, vector<TH2D*> vRef)
 
 vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string title, bool isRef, bool isAverage, string mapBranch)
 {
-  
+
   vector<TH2D*> hists;
   vector<TH2D*> ave_hists;
   vector<TH2D*> var_hists;
-  
+
   string prefix = (isRef)?"ref_":"plt_";
-  
+
   for (int i=0; i<6; i++)
   {
     // Make a histogram to hold the count for each calo location
@@ -823,41 +823,53 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     TH2D *h = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
     if( h->GetSumw2N() == 0 ) h->Sumw2();
     hists.push_back(h);
-    
+
     // Another for the value to be averaged (if an average plot)
     prefix = (isRef)?"refave_":"ave_";
     TH2D *m = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
     if( m->GetSumw2N() == 0 ) m->Sumw2();
     ave_hists.push_back(m);
-    
+
     // And another to histogram the quantity squared, to be used to calculate the error on the mean
     prefix = (isRef)?"refvar_":"var_";
     TH2D *v = new TH2D((prefix+branchName+"_"+CALO_WALL[i]).c_str(),(CALO_WALL[i]).c_str(),CALO_XBINS[i],CALO_XLO[i],CALO_XHI[i],CALO_YBINS[i],0,CALO_YBINS[i]);
     if( v->GetSumw2N() == 0 ) v->Sumw2();
     var_hists.push_back(v);
   }
-  
+
 
   // Loop the event tree and decode the position
-  
+
   // Set up a vector of strings to receive the list of calorimeter IDs
   // There is one entry in the vector for each calorimeter hit in the event
   // And it will have a format something like [1302:0.1.0.10.*]
   std::vector<string> *caloHits = 0;
-  
+
   TTree *thisTree = (isRef)?reftree->CopyTree(""):tree->CopyTree("");
-  
+
   // Count the number of entries in the tree
   int nEntries = thisTree -> GetEntries();
   // Map the branches
   thisTree->SetBranchAddress(mapBranch.c_str(), &caloHits);
-  
+
+  std::vector<double>  *e_vert_x = 0;
+  std::vector<double>  *e_vert_y = 0;
+  std::vector<double>  *e_vert_z = 0;
+  thisTree->SetBranchAddress("reco.electron_vertex_x", &e_vert_x);
+  thisTree->SetBranchAddress("reco.electron_vertex_y", &e_vert_y);
+  thisTree->SetBranchAddress("reco.electron_vertex_z", &e_vert_z);
+
+  std::vector<string> *trackCaloHits = 0;
+
+  //thisTree->SetBranchAddress("c_calorimeter_hit_map_backscatter", &caloHits);
+  thisTree->SetBranchAddress("reco.track_calo_hits", &trackCaloHits);
+
   std::vector<double> *toAverage = 0;
   if (isAverage)
   {
     thisTree->SetBranchAddress(fullBranchName.c_str(), &toAverage);
   }
-  
+
   // Loop through the tree
   for( int iEntry = 0; iEntry < nEntries; iEntry++ )
   {
@@ -865,11 +877,122 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     // Populate these with which histogram we will fill and what cell
     int xValue=0;
     int yValue=0;
+
+    int xValue_vert=0;
+    int yValue_vert=0;
+
    // TH2D *whichHistogram=0;
    // TH2D *whichAverage=0; // this is a tad messy
-    
+
     int whichWall=-1;
-    
+
+//std::cout<< "Entry num "<< iEntry << " with " <<e_vert_x->size() << " electrons - (check calo hits:" << caloHits->size() <<std::endl;
+//std::cout<< "vert X " << e_vert_x->at(0) <<std::endl;
+    for (int i=0;i<e_vert_x->size();i++)
+    {
+      if(abs(e_vert_x->at(i)) == 434.994)
+      {
+
+      //std::cout<< "Y location is " << e_vert_y->at(i) <<std::endl;
+      //xValue_vert = int((e_vert_y->at(i)+2505.494)/(2505.494*2)*20);
+      //yValue_vert = int((e_vert_z->at(i)+1300.)/(1300.*2)*13);
+
+
+      int xValue_vert = 0;
+      int yValue_vert = 0;
+
+      string thisHit=trackCaloHits->at(i);
+
+      if (thisHit.length()>=9)
+      {
+        bool isFrance=(thisHit.substr(8,1)=="1");
+        //Now to decode it
+        string wallType = thisHit.substr(1,4);
+
+        if (wallType=="1302") // Main walls
+        {
+
+          //if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+          if (isFrance) whichWall = FRANCE; else whichWall = ITALY;
+          string useThisToParse = thisHit;
+
+          // Hacky way to get the bit between the 2nd and 3rd "." characters for x
+          int pos=useThisToParse.find('.');
+          useThisToParse=useThisToParse.substr(pos+1);
+          pos=useThisToParse.find('.');
+          useThisToParse=useThisToParse.substr(pos+1);
+          pos=useThisToParse.find('.');
+          std::string::size_type sz;   // alias of size_t
+          xValue_vert = std::stoi (useThisToParse.substr(0,pos),&sz);
+
+          // and the bit before the next . characters for y
+          useThisToParse=useThisToParse.substr(pos+1);
+          pos=useThisToParse.find_first_of('.');
+          yValue_vert = std::stoi (useThisToParse.substr(0,pos),&sz);
+
+          if (!isFrance)xValue_vert = -1 * (xValue_vert + 1);
+        }
+      }
+
+      if (caloHits->size()>0)
+      {
+        for (int i=0;i<caloHits->size();i++)
+        {
+          string thisHit=caloHits->at(i);
+
+          if (thisHit.length()>=9)
+          {
+            bool isFrance=(thisHit.substr(8,1)=="1");
+            //Now to decode it
+            string wallType = thisHit.substr(1,4);
+
+            if (wallType=="1302") // Main walls
+            {
+
+              //if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
+              if (isFrance) whichWall = FRANCE; else whichWall = ITALY;
+              string useThisToParse = thisHit;
+
+              // Hacky way to get the bit between the 2nd and 3rd "." characters for x
+              int pos=useThisToParse.find('.');
+              useThisToParse=useThisToParse.substr(pos+1);
+              pos=useThisToParse.find('.');
+              useThisToParse=useThisToParse.substr(pos+1);
+              pos=useThisToParse.find('.');
+              std::string::size_type sz;   // alias of size_t
+              xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+
+              // and the bit before the next . characters for y
+              useThisToParse=useThisToParse.substr(pos+1);
+              pos=useThisToParse.find_first_of('.');
+              yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
+
+              // The numbering is from mountain to tunnel
+              // But we draw the Italian side as we see it, with the mountain on the left
+              // So let's flip it around
+              if (!isFrance)xValue = -1 * (xValue + 1);
+
+              //std::cout<< "VALUES " << xValue << " and " << yValue<<std::endl;
+              if(xValue_vert == xValue && yValue_vert == yValue){
+                //std::cout<< "BACKSCATTERING at xCal = " << xValue << " and yCal = " << yValue <<std::endl;
+                if (whichWall>=0 && mapBranch == "c_calorimeter_hit_map_backscatter")
+                {
+                  //std::cout<< "Part num "<< i << " in entry " << iEntry << " is on CaloWall!"<<std::endl;
+                  std::cout<< "Entry num "<< iEntry << " BACKSCATTERING at xCal = " << xValue << " and yCal = " << yValue <<std::endl;
+                  hists.at(whichWall)->Fill(xValue,yValue);
+                }
+              }
+
+
+            }//end wall
+          } //end if length hit
+        }//end for calo
+      }//end if calo
+    }//end if vert on wall
+  }
+
+
+
     // This should always work, but there is next to no catching of badly formatted
     // geom ID strings. Are they a possibility?
     if (caloHits->size()>0)
@@ -877,20 +1000,20 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
       for (int i=0;i<caloHits->size();i++)
       {
         string thisHit=caloHits->at(i);
-        
+
         if (thisHit.length()>=9)
         {
           bool isFrance=(thisHit.substr(8,1)=="1");
           //Now to decode it
           string wallType = thisHit.substr(1,4);
-          
+
           if (wallType=="1302") // Main walls
           {
-            
+
             //if (isFrance) whichHistogram = hFrance; else whichHistogram = hItaly;
             if (isFrance) whichWall = FRANCE; else whichWall = ITALY;
             string useThisToParse = thisHit;
-            
+
             // Hacky way to get the bit between the 2nd and 3rd "." characters for x
             int pos=useThisToParse.find('.');
             useThisToParse=useThisToParse.substr(pos+1);
@@ -899,12 +1022,12 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
             pos=useThisToParse.find('.');
             std::string::size_type sz;   // alias of size_t
             xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            
+
             // and the bit before the next . characters for y
             useThisToParse=useThisToParse.substr(pos+1);
             pos=useThisToParse.find_first_of('.');
             yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            
+
             // The numbering is from mountain to tunnel
             // But we draw the Italian side as we see it, with the mountain on the left
             // So let's flip it around
@@ -927,20 +1050,20 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
             pos=useThisToParse.find('.');
             std::string::size_type sz;   // alias of size_t
             xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
-            
+
             // and the bit before the next . characters for y
             useThisToParse=useThisToParse.substr(pos+1);
             pos=useThisToParse.find_first_of('.');
             yValue = std::stoi (useThisToParse.substr(0,pos),&sz);
             if (!isFrance)xValue = -1 * (xValue + 1); // Italy is on the left so reverse these to draw them
-            
+
             if (isTunnel) // Switch it so France is on the left for the tunnel side
             {
               xValue = -1 * (xValue + 1);
             }
-            
+
             //cout<<iEntry<<" : " <<thisHit<<" : " <<(isFrance?"Fr.":"It")<<" - "<<(isTunnel?"tunnel":"mountain")<<" - "<<xValue<<":"<<yValue<<endl;
-            
+
           }
           else if (wallType == "1252") // veto walls
           {
@@ -954,7 +1077,7 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
               useThisToParse=useThisToParse.substr(pos+1);
               pos=useThisToParse.find('.');
             }
-            
+
             std::string::size_type sz;   // alias of size_t
             yValue=((isFrance^isTop)?1:0); // We flip this so that French side is inwards on the print
             xValue = std::stoi (useThisToParse.substr(0,pos),&sz);
@@ -965,10 +1088,11 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
             cout<<"WARNING -- Calo hit found with unknown wall type "<<wallType<<endl;
             continue; // We can't plot it if we don't know where to plot it
           }
-          
+
           // Now we know which histogram and the coordinates so write it
           if (whichWall>=0)
           {
+            if(mapBranch != "c_calorimeter_hit_map_backscatter"){
             hists.at(whichWall)->Fill(xValue,yValue);
             if (isAverage)
             {
@@ -976,6 +1100,8 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
               var_hists.at(whichWall)->Fill(xValue,yValue, pow(toAverage->at(i),2)  ); // Sum the squares for variance calculation
             }
           }
+        }
+
           else
           {
             cout<<"WARNING -- Calo hit found with unknown wall type "<<endl;
@@ -990,10 +1116,10 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     for (int i=0;i<hists.size();i++)
     {
       ave_hists.at(i)->Divide(hists.at(i)); // Go from totals to averages
-      
+
       var_hists.at(i)->Divide(hists.at(i)); // This should correctly give us the mean of the squares
-      
-      
+
+
       // Then variance of the sample is n/(n-1) times  mean of (x^2) - (mean of x)^2
       // Variance on the MEAN is then variance of sample / number of hits
       // Take the square root of that to get the error on the mean, which is what we need here
@@ -1040,7 +1166,7 @@ vector<TH2D*> MakeCaloPlotSet(string fullBranchName, string branchName, string t
     }
     return hists;
   }
-  
+
   return hists;
 }
 
@@ -1054,17 +1180,17 @@ void PlotTrackerMap(string branchName)
 
   string config="";
   config=configParams[branchName]; // get the config loaded from the file if there is one
-  
+
   // Can we do a comparison to the reference for this plot?
   bool hasReferenceBranch=hasValidReference;
-  
+
   // Check whether the reference file contains this branch
   if (hasValidReference)
   {
     hasReferenceBranch=reftree->GetBranchStatus(branchName.c_str());
     if (!hasReferenceBranch) cout<<"WARNING: branch "<<branchName<<" not found in reference file. No comparison plots will be made for this branch"<<endl;
   }
-  
+
   string title="";
   // Load the title from the config file
   if (config.length()>0)
@@ -1072,7 +1198,7 @@ void PlotTrackerMap(string branchName)
     // title is the only thing for this one
     title=GetBitBeforeComma(config); // config now has this bit chopped off ready for the next parsing stage
   }
-  
+
   string fullBranchName=branchName;//This is a combo of name and parent for average branches
   // is it an average?
   string mapBranch=branchName;
@@ -1087,7 +1213,7 @@ void PlotTrackerMap(string branchName)
       return;
     }
     mapBranch=branchName.substr(pos+1);
-    
+
     // Check whether the sample file and the reference file contain the map branch
     if (!tree->GetBranchStatus(mapBranch.c_str()))
     {
@@ -1102,7 +1228,7 @@ void PlotTrackerMap(string branchName)
     branchName=branchName.substr(0,pos);
     isAverage=true;
   }
-  
+
   // Set the title to a default if there isn't anything in the config file
   if (title.length()==0)
   {
@@ -1117,17 +1243,17 @@ void PlotTrackerMap(string branchName)
   c->SetRightMargin(0.15);
   OverlayWhiteForNaN(h);
   AnnotateTrackerMap();
-  
+
   // Save to a ROOT file and to a PNG
   h->Write("",TObject::kOverwrite);
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
-  
+
   // If there is a reference plot, make a pull plot
   if (hasReferenceBranch)
   {
     TH2D *href=TrackerMapHistogram(fullBranchName,branchName, title, true, isAverage, mapBranch);
     if( href->GetSumw2N() == 0 )href->Sumw2();
-    
+
     double scale=(double)tree->GetEntries()/(double)reftree->GetEntries();
     if (!isAverage) href->Scale(scale); // Normalise it if it is a plot of counts. Don't normalise it if it is an average plot; the number of entries shouldn't matter
 
@@ -1135,15 +1261,15 @@ void PlotTrackerMap(string branchName)
     Double_t chisq;
     Int_t ndf;
     Double_t p_value=ChiSquared(h, href, chisq, ndf, isAverage);
-    
+
     cout<<"Kolmogorov: "<<ks<<endl;
     cout<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
-    
+
     // Write to output file
     textOut<<branchName<<":"<<endl;
     textOut<<"KS score: "<<ks<<endl;
     textOut<<"P-value: "<<p_value<<" Chi-square: "<<chisq<<" / "<<ndf<<" DoF = "<<chisq/(double)ndf<<endl;
-    
+
     TH2D *hPull = PullPlot2D(h,href);
     CheckTrackerPull(hPull,title);
     gStyle->SetPalette(PULL_PALETTE);
@@ -1153,12 +1279,12 @@ void PlotTrackerMap(string branchName)
     AnnotateTrackerMap();
     hPull->Write("",TObject::kOverwrite);
     c->SaveAs((plotdir+"/pull_"+branchName+".png").c_str());
-    
+
     gStyle->SetPalette(PALETTE);
     delete hPull;
     textOut<<endl;
   }
-  
+
   delete h;
   delete c;
 
@@ -1172,7 +1298,7 @@ void AnnotateTrackerMap()
     foil->SetLineColor(kGray);
     foil->SetLineWidth(5);
     foil->Draw("SAME");
-  
+
     // Decorate the print
     WriteLabel(.16,.5,"Italy");
     WriteLabel(.65,.5,"France");
@@ -1183,14 +1309,14 @@ void AnnotateTrackerMap()
 // Calculate the pull between two 2d histograms
 TH2D *PullPlot2D(TH2D *hSample, TH2D *hRef )
 {
-  
+
   if( hSample->GetSumw2N() == 0 )  hSample->Sumw2();
   if( hRef->GetSumw2N() == 0 )hRef->Sumw2();
   TH2D *hPull = (TH2D*)hSample->Clone();
   hPull->SetName(Form("pull_%s",hPull->GetName()));
   hPull->SetTitle(Form("Pull: %s",hPull->GetTitle()));
   hPull->ClearUnderflowAndOverflow (); // There shouldn't be anything in them anyway but let's be sure
-  
+
   for (int x=0;x<=hSample->GetNbinsX();x++)
   {
       for (int y=0;y<=hSample->GetNbinsY();y++)
@@ -1222,12 +1348,12 @@ double CheckTrackerPull(TH2D *hPull, string title)
   bool problemPulls=false;
   double totalPull=0;
   int pullCells=0;
-  
+
   string firstName=hPull->GetName();
   string hPullName="allpulls"+firstName.substr(4);
-  
+
   TH1D *h1Pulls = new TH1D(hPullName.c_str(),(title+" pulls").c_str(),100,-10,10);
-  
+
   for (int x=1;x<=hPull->GetNbinsX();x++)
   {
     for (int y=1;y<=hPull->GetNbinsY();y++)
@@ -1259,7 +1385,7 @@ double CheckTrackerPull(TH2D *hPull, string title)
   {
     textOut<<"Layers are numbered 1 to 9, with 1 nearest the foil. Rows count from mountain (1) to tunnel ("<<MAX_TRACKER_ROWS<<")."<<endl;
   }
-  
+
   // Check whether the distributions are identical (all pulls 0)
 
   if ( (hPull->GetBinContent(hPull->GetMaximumBin())) == 0 && (hPull->GetBinContent(hPull->GetMinimumBin())) == 0)
@@ -1286,20 +1412,20 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
   if (isRef) tmpName = "ref_"+tmpName;
     TH2D *h = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
   if( h->GetSumw2N() == 0 )h->Sumw2(); // Important to get errors right
-  
+
     tmpName="ave_"+branchName;
     if (isRef) tmpName = "ref_"+tmpName;
     TH2D *hAve = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Map of the tracker
-  
+
     if( hAve->GetSumw2N() == 0 )hAve->Sumw2(); // Important to get errors right
-  
-  
+
+
     tmpName ="sq_"+tmpName;
     TH2D *hQuantitySquared = new TH2D(tmpName.c_str(),title.c_str(),MAX_TRACKER_LAYERS*2,MAX_TRACKER_LAYERS*-1,MAX_TRACKER_LAYERS,MAX_TRACKER_ROWS,0,MAX_TRACKER_ROWS); // Use this to get the standard deviation of the measurements
     if( hQuantitySquared->GetSumw2N() == 0 )hQuantitySquared->Sumw2(); // Important to get errors right
-  
+
     // This decodes the encoded tracker map to extract the x and y positions
-  
+
     // Unfortunately it is not so easy to make the averages plot so we need to loop the tuple
     std::vector<int> *trackerHits = 0;
     std::vector<double> *toAverageTrk = 0;
@@ -1313,7 +1439,7 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
 
     // Now we can fill the two plots
     // Loop through the tree
-  
+
     int nEntries = thisTree -> GetEntries();
     for( int iEntry = 0; iEntry < nEntries; iEntry++ )
     {
@@ -1345,8 +1471,8 @@ TH2D *TrackerMapHistogram(string fullBranchName, string branchName, string title
     {
       hAve->Divide(h); // This should correctly give us the mean
       hQuantitySquared->Divide(h); // This should correctly give us the mean of the squares
-      
-      
+
+
       // Then variance of the sample is n/(n-1) times  mean of (x^2) - (mean of x)^2
       // Variance on the MEAN is then variance of sample / number of hits
       // Take the square root of that to get the error on the mean, which is what we need here
@@ -1465,7 +1591,7 @@ void OverlayWhiteForNaN(TH2D *hist)
         Double_t x2 = hist->GetXaxis()->GetBinUpEdge(x);
         Double_t y1 = hist->GetYaxis()->GetBinLowEdge(y);
         Double_t y2 = hist->GetYaxis()->GetBinUpEdge(y);
-        
+
         TBox *box2 = new TBox(x1, y1, x2, y2);
         box2->SetFillStyle(1001);
         box2->SetFillColor(kWhite);
@@ -1493,7 +1619,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   TH2D *hMountain=histos.at(3);
   TH2D *hTop=histos.at(4);
   TH2D *hBottom=histos.at(5);
-  
+
   //First, 20x13
   TPad *pItaly = new TPad("p_italy",
                           "",0.6,0.2,1,0.8,0);
@@ -1515,7 +1641,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   TPad *pTitle = new TPad("p_title",
                           "",0.6,0.8,0.95,1,0);
   pTitle->Draw();
-  
+
   std::vector <TPad*> pads;
   pads.push_back(pItaly);
   pads.push_back(pTunnel);
@@ -1523,15 +1649,15 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   pads.push_back(pMountain);
   pads.push_back(pTop);
   pads.push_back(pBottom);
-  
-  
+
+
   hBottom->GetYaxis()->SetBinLabel(2,"France");
   hBottom->GetYaxis()->SetBinLabel(1,"Italy");
   hTop->GetYaxis()->SetBinLabel(1,"France");
   hTop->GetYaxis()->SetBinLabel(2,"Italy");
-  
+
   gStyle->SetOptTitle(0);
-  
+
   // Set them all to the same scale; first work out what it should be
   double max=-9999;
   double min=0;
@@ -1552,28 +1678,28 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
     histos.at(i)->GetXaxis()->SetNdivisions(histos.at(i)->GetNbinsX());
     histos.at(i)->GetXaxis()->CenterLabels();
     histos.at(i)->GetYaxis()->CenterLabels();
-    
+
   }
-  
+
   // Italian Main wall
   pItaly->cd();
   for (int i=1;i<=hItaly->GetNbinsX();i++)
   {
     hItaly->GetXaxis()->SetBinLabel(i,(to_string(MAINWALL_WIDTH-i)).c_str());
   }
-  
+
   hItaly->GetXaxis()->SetLabelSize(0.06);
   hItaly->Draw("COLZ0"); // Only have the scale over on the right
-  
+
   OverlayWhiteForNaN(hItaly);
   WriteLabel(.45,.95,"Italy");
-  
+
   // French main wall
   pFrance->cd();
   hFrance->Draw("COL0");
   OverlayWhiteForNaN(hFrance);
   WriteLabel(.4,.95,"France");
-  
+
   // Mountain x wall
   pMountain->cd();
   hMountain->GetYaxis()->SetLabelSize(0.1);
@@ -1583,7 +1709,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   hMountain->GetXaxis()->SetBinLabel(3,"");
   hMountain->GetXaxis()->SetBinLabel(4,"Fr.");
   hMountain->GetXaxis()->SetLabelSize(0.2);
-  
+
   hMountain->Draw("COL0");
   OverlayWhiteForNaN(hMountain);
   WriteLabel(.2,.95,"Mountain",0.15);
@@ -1592,7 +1718,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   foil->SetLineColor(kGray+3);
   foil->SetLineWidth(5);
   foil->Draw("SAME");
-  
+
   // Tunnel x wall
   pTunnel->cd();
   hTunnel->GetYaxis()->SetLabelSize(0.1);
@@ -1606,7 +1732,7 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   OverlayWhiteForNaN(hTunnel);
   WriteLabel(.25,.95,"Tunnel",0.15);
   foil->Draw("SAME");
-  
+
   // Top veto wall
   pTop->cd();
   hTop->Draw("COL0");
@@ -1619,8 +1745,8 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   foilveto->SetLineWidth(5);
   foilveto->Draw("SAME");
   WriteLabel(.42,.2,"Top",0.2);
-  
-  
+
+
   // Bottom veto wall
   pBottom->cd();
   hBottom->GetXaxis()->SetLabelSize(0.1);
@@ -1629,12 +1755,12 @@ void PrintCaloPlots(string branchName, string title, vector <TH2D*> histos)
   OverlayWhiteForNaN(hBottom);
   foilveto->Draw("SAME");
   WriteLabel(.42,.6,"Bottom",0.2);
-  
+
   pTitle->cd();
   WriteLabel(.1,.5,title,0.2);
-  
+
   c->SaveAs((plotdir+"/"+branchName+".png").c_str());
-  
+
   delete c;
   return;
 }
@@ -1644,7 +1770,7 @@ double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage)
   // Calculate a chi squared per degree of freedom
   chisq=0;
   ndf=0;
-  
+
   for (int x=1; x<=h1->GetNbinsX();x++)
   {
     for (int y=1; y<=h1->GetNbinsY();y++)
@@ -1653,7 +1779,7 @@ double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage)
       double  val2 = h2->GetBinContent(x,y);
       double err1 = h1->GetBinError(x,y);
       double err2 = h2->GetBinError(x,y);
-      
+
       // We won't count the bin (or increase the degrees of freedom) if we don't have enough info
       // This is the case if either uncertainty is zero or  if a value or uncertainty is not a number
       if ((std::isnan(val1) || std::isnan(val2) || std::isnan(err1) || std::isnan(err2)))
@@ -1661,13 +1787,13 @@ double ChiSquared(TH1 *h1, TH1 *h2, double &chisq, int &ndf, bool isAverage)
        // cout<<"Insufficient information for bin  ("<<x<<","<<y<<"): do not include in chi square calculation"<<endl;
         continue;
       }
-      
+
       if (err1 == 0 || err2 == 0) // Should never be the case!
       {
         //cout<<"Insufficient information for bin  ("<<x<<","<<y<<"): do not include in chi square calculation"<<endl;
         continue;
       }
-      
+
       ndf++;
       double numerator = pow((val1 - val2), 2);
       double denominator = pow(err1,2) + pow(err2,2);
